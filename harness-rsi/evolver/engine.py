@@ -41,10 +41,10 @@ class GenerationRecord(BaseModel):
 
 
 def _extract_python_code(text: str) -> str | None:
-    blocks = re.findall(r"```python\s*\n(.*?)```", text, flags=re.DOTALL)
+    blocks = re.findall(r"^```python[ \t]*\n(.*?)^```[ \t]*$", text, flags=re.DOTALL | re.MULTILINE)
     if blocks:
         return max(blocks, key=len).strip() + "\n"
-    blocks = re.findall(r"```\s*\n(.*?)```", text, flags=re.DOTALL)
+    blocks = re.findall(r"^```[ \t]*\n(.*?)^```[ \t]*$", text, flags=re.DOTALL | re.MULTILINE)
     if blocks:
         return max(blocks, key=len).strip() + "\n"
     return None

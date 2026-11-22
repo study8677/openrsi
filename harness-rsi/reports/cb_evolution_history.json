@@ -1,0 +1,34 @@
+[
+  {
+    "generation": 0,
+    "status": "baseline",
+    "accuracy": 0.5366,
+    "cycle_accuracies": {
+      "cycle_0": 0.9118,
+      "cycle_1": 0.4714,
+      "cycle_2": 0.3333
+    },
+    "probes": "57/103"
+  },
+  {
+    "generation": 1,
+    "status": "invalid",
+    "accuracy": 0.5366
+  },
+  {
+    "generation": 2,
+    "status": "invalid",
+    "accuracy": 0.5366
+  },
+  {
+    "generation": 3,
+    "status": "kept",
+    "accuracy": 0.9375,
+    "cycle_accuracies": {
+      "cycle_0": 0.9412,
+      "cycle_1": 0.9429,
+      "cycle_2": 0.9412
+    },
+    "probes": "97/103"
+  }
+]
