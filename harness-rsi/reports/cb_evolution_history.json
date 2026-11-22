@@ -2,33 +2,70 @@
   {
     "generation": 0,
     "status": "baseline",
-    "accuracy": 0.5366,
-    "cycle_accuracies": {
-      "cycle_0": 0.9118,
-      "cycle_1": 0.4714,
-      "cycle_2": 0.3333
+    "accuracy": 0.8208,
+    "by_family": {
+      "buried_constraint": 1.0,
+      "conditional_scope": 0.4667,
+      "decision_override": 1.0,
+      "entity_confusion": 1.0,
+      "numeric_precision": 1.0,
+      "provenance_authority": 1.0,
+      "reference_resolution": 0.4,
+      "task_continuity": 0.7
     },
-    "probes": "57/103"
+    "cycle_accuracies": {
+      "cycle_0": 0.95,
+      "cycle_1": 0.95,
+      "cycle_2": 0.8,
+      "cycle_3": 0.8,
+      "cycle_4": 0.8
+    },
+    "probes": "86/100"
   },
   {
     "generation": 1,
-    "status": "invalid",
-    "accuracy": 0.5366
+    "status": "reverted",
+    "accuracy": 0.7236,
+    "by_family": {
+      "buried_constraint": 0.8222,
+      "conditional_scope": 0.6667,
+      "decision_override": 0.0,
+      "entity_confusion": 1.0,
+      "numeric_precision": 0.8,
+      "provenance_authority": 1.0,
+      "reference_resolution": 1.0,
+      "task_continuity": 0.5
+    },
+    "cycle_accuracies": {
+      "cycle_0": 0.8,
+      "cycle_1": 0.75,
+      "cycle_2": 0.7,
+      "cycle_3": 0.6333,
+      "cycle_4": 0.6333
+    },
+    "probes": "69/100"
   },
   {
     "generation": 2,
-    "status": "invalid",
-    "accuracy": 0.5366
-  },
-  {
-    "generation": 3,
     "status": "kept",
-    "accuracy": 0.9375,
-    "cycle_accuracies": {
-      "cycle_0": 0.9412,
-      "cycle_1": 0.9429,
-      "cycle_2": 0.9412
+    "accuracy": 0.8542,
+    "by_family": {
+      "buried_constraint": 1.0,
+      "conditional_scope": 0.7333,
+      "decision_override": 1.0,
+      "entity_confusion": 1.0,
+      "numeric_precision": 1.0,
+      "provenance_authority": 1.0,
+      "reference_resolution": 1.0,
+      "task_continuity": 0.1
     },
-    "probes": "97/103"
+    "cycle_accuracies": {
+      "cycle_0": 0.9,
+      "cycle_1": 0.85,
+      "cycle_2": 0.85,
+      "cycle_3": 0.85,
+      "cycle_4": 0.9
+    },
+    "probes": "87/100"
   }
 ]

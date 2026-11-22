@@ -338,6 +338,7 @@ def run_compactbench_evolution(
             "generation": 0,
             "status": "baseline",
             "accuracy": best.overall_accuracy,
+            "by_family": best.by_family,
             "cycle_accuracies": best.cycle_accuracies,
             "probes": f"{best.correct_probes}/{best.total_probes}",
         }
@@ -349,6 +350,11 @@ def run_compactbench_evolution(
             console.print("[green]Reached >=99% accuracy on CompactBench! Stopping early.[/green]")
             break
 
+        hist_lines = [
+            f"  Gen {h['generation']} [{h['status']}]: score={h['accuracy']:.3f} | "
+            f"by_family={h.get('by_family', {})} | cycles={h.get('cycle_accuracies', {})}"
+            for h in history
+        ]
         prompt = f"""You are the Meta-Agent Proposer in OpenRSI evolving `harness/cb_compactor.py` for CompactBench.
 CompactBench tests MULTI-CYCLE context compaction drift across 8 adversarial families:
 buried_constraint, conditional_scope, decision_override, entity_confusion, numeric_precision,
@@ -357,14 +363,17 @@ provenance_authority, reference_resolution, and task_continuity.
 Critical rules for `OpenRSICompactor(Compactor)`:
 1. Keep class name `OpenRSICompactor(Compactor)` with `name = "openrsi-compactor"` and `async def compact(self, request: CompactionRequest) -> CompactionArtifact`.
 2. In cycle 0, `request.turns` is the opening conversation; in later cycles, `request.previous_artifact` is YOUR previous output and `request.turns` contains ONLY the new turns!
-3. You may use deterministic Python extraction/structuring AND/OR `await self.provider.complete(CompletionRequest(model=self.model, prompt=..., max_tokens=...))` (hybrid structured ledger + LLM update works especially well for multi-cycle drift and decision overrides!).
-4. Keep the returned `CompactionArtifact(summary_text=...)` strictly within `request.token_budget` tokens (verify with `tiktoken.get_encoding("cl100k_base")`).
+3. Make SURGICAL, TARGETED improvements to the current best architecture so you FIX the weakest families (e.g. reference_resolution, task_continuity, conditional_scope) WITHOUT regressing families that already score 1.00!
+4. Keep the returned `CompactionArtifact(summary_text=...)` strictly within `request.token_budget` tokens (verify with `tiktoken.get_encoding("cl100k_base")`, target <= 92% of budget for 0 violations).
 5. Return the COMPLETE updated `harness/cb_compactor.py` inside a single ```python ... ``` code block.
+
+## Evolution History (learn from what improved vs regressed!)
+{chr(10).join(hist_lines)}
 
 ## Current Best Performance
 - Official Score: {best.overall_accuracy:.3f} ({best.overall_accuracy:.1%})
 - Drift Resistance: {best.drift_resistance:.3f} | Decay (first - last): {best.decay:+.3f}
-- Mean Artifact Tokens: {best.mean_artifact_tokens:.0f} | Budget Violations: {best.budget_violations} (aim for 0 violations by staying <= 90% of `request.token_budget`!)
+- Mean Artifact Tokens: {best.mean_artifact_tokens:.0f} | Budget Violations: {best.budget_violations} (aim for 0 violations!)
 - Per-Cycle Score: {best.cycle_accuracies}
 - Per-Family Score: {best.by_family}
 - Sample Failures:
@@ -375,7 +384,7 @@ Critical rules for `OpenRSICompactor(Compactor)`:
 {best_code}
 ```
 
-Analyze why information drifted or got lost across cycles, and output the improved `harness/cb_compactor.py` inside a single ```python ... ``` block.
+Diagnose why the weakest families failed (and avoid breaking strong families), then output the complete improved `harness/cb_compactor.py` inside a single ```python ... ``` block.
 """
         console.print("[cyan]Proposing candidate patch for harness/cb_compactor.py...[/cyan]")
         reply = call_codex_text(prompt, model=model, timeout_sec=240)
@@ -420,6 +429,7 @@ Analyze why information drifted or got lost across cycles, and output the improv
                     "generation": gen,
                     "status": "kept",
                     "accuracy": cand.overall_accuracy,
+                    "by_family": cand.by_family,
                     "cycle_accuracies": cand.cycle_accuracies,
                     "probes": f"{cand.correct_probes}/{cand.total_probes}",
                 }
@@ -435,6 +445,7 @@ Analyze why information drifted or got lost across cycles, and output the improv
                     "generation": gen,
                     "status": "reverted",
                     "accuracy": cand.overall_accuracy,
+                    "by_family": cand.by_family,
                     "cycle_accuracies": cand.cycle_accuracies,
                     "probes": f"{cand.correct_probes}/{cand.total_probes}",
                 }
