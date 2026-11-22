@@ -2,70 +2,70 @@
   {
     "generation": 0,
     "status": "baseline",
-    "accuracy": 0.8208,
+    "accuracy": 0.7396,
     "by_family": {
-      "buried_constraint": 1.0,
+      "buried_constraint": 0.85,
       "conditional_scope": 0.4667,
       "decision_override": 1.0,
       "entity_confusion": 1.0,
-      "numeric_precision": 1.0,
+      "numeric_precision": 0.7,
       "provenance_authority": 1.0,
-      "reference_resolution": 0.4,
-      "task_continuity": 0.7
+      "reference_resolution": 0.6,
+      "task_continuity": 0.3
     },
     "cycle_accuracies": {
       "cycle_0": 0.95,
-      "cycle_1": 0.95,
-      "cycle_2": 0.8,
-      "cycle_3": 0.8,
-      "cycle_4": 0.8
+      "cycle_1": 0.9,
+      "cycle_2": 0.6875,
+      "cycle_3": 0.65,
+      "cycle_4": 0.7
     },
-    "probes": "86/100"
+    "probes": "77/100"
   },
   {
     "generation": 1,
-    "status": "reverted",
-    "accuracy": 0.7236,
-    "by_family": {
-      "buried_constraint": 0.8222,
-      "conditional_scope": 0.6667,
-      "decision_override": 0.0,
-      "entity_confusion": 1.0,
-      "numeric_precision": 0.8,
-      "provenance_authority": 1.0,
-      "reference_resolution": 1.0,
-      "task_continuity": 0.5
-    },
-    "cycle_accuracies": {
-      "cycle_0": 0.8,
-      "cycle_1": 0.75,
-      "cycle_2": 0.7,
-      "cycle_3": 0.6333,
-      "cycle_4": 0.6333
-    },
-    "probes": "69/100"
-  },
-  {
-    "generation": 2,
     "status": "kept",
-    "accuracy": 0.8542,
+    "accuracy": 0.7819,
     "by_family": {
-      "buried_constraint": 1.0,
-      "conditional_scope": 0.7333,
+      "buried_constraint": 0.7556,
+      "conditional_scope": 0.4,
       "decision_override": 1.0,
       "entity_confusion": 1.0,
-      "numeric_precision": 1.0,
+      "numeric_precision": 0.7,
       "provenance_authority": 1.0,
-      "reference_resolution": 1.0,
-      "task_continuity": 0.1
+      "reference_resolution": 0.4,
+      "task_continuity": 1.0
     },
     "cycle_accuracies": {
       "cycle_0": 0.9,
-      "cycle_1": 0.85,
+      "cycle_1": 0.95,
       "cycle_2": 0.85,
-      "cycle_3": 0.85,
-      "cycle_4": 0.9
+      "cycle_3": 0.6833,
+      "cycle_4": 0.6833
     },
-    "probes": "87/100"
+    "probes": "80/100"
+  },
+  {
+    "generation": 2,
+    "status": "reverted",
+    "accuracy": 0.5806,
+    "by_family": {
+      "buried_constraint": 0.6444,
+      "conditional_scope": 0.4667,
+      "decision_override": 0.1333,
+      "entity_confusion": 1.0,
+      "numeric_precision": 0.7,
+      "provenance_authority": 1.0,
+      "reference_resolution": 0.0,
+      "task_continuity": 0.7
+    },
+    "cycle_accuracies": {
+      "cycle_0": 0.85,
+      "cycle_1": 0.7333,
+      "cycle_2": 0.5167,
+      "cycle_3": 0.5167,
+      "cycle_4": 0.5167
+    },
+    "probes": "61/100"
   }
 ]

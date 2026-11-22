@@ -62,9 +62,32 @@ Harness-RSI 不仅限于微调 Prompt，而是覆盖四个层次：
 
 ---
 
+## 快速上手
+
+```bash
+cd harness-rsi
+uv sync
+
+# 1. 验收 Harbor 沙盒 Demo 任务（nop=0.0, oracle=1.0）
+uv run harbor run -p arena/fix-mini-kvstore -a nop
+uv run harbor run -p arena/fix-mini-kvstore -a oracle
+
+# 2. 在自研长任务上下文压缩基准上评测与进化（18% Token 硬预算）
+uv run openrsi generate-arena
+uv run openrsi eval --split all
+uv run openrsi evolve --generations 3
+
+# 3. 在 CompactBench 多轮漂移难题集上评测与进化（支持 32k tokens Elite 难度）
+uv run openrsi cb-eval --suite practice --seed-group practice_eval --cases-per-family 2
+uv run openrsi cb-eval --method built-in:codex-cli --suite practice --seed-group practice_eval --cases-per-family 2
+uv run openrsi cb-evolve --suite practice --cases-per-family 1 --generations 2
+```
+
+---
+
 ## 路线图（Roadmap）
 
-- [ ] **H1 — 最小自修改闭环**：命令行驱动器，接入目标 Agent 仓库与评测命令，实现“提补丁 → 沙盒跑分 → 自动提交/回滚”。
-- [ ] **H2 — 轨迹驱动的错误诊断**：结构化摘要失败原因，让元代理看到“为什么错”，而不是原始日志堆砌。
-- [ ] **H3 — 进化档案库与多目标门控**：基于 Git 的进化树，联合跟踪得分、Token 成本与延迟，并加入留出集抽检。
+- [x] **H1 — 最小自修改闭环**：`openrsi` 命令行驱动器，完成沙盒/确定性验分与自动保留/回滚门控。
+- [x] **H2 — 轨迹归因与 CompactBench 接入**：按家族与轮次输出漂移诊断，在 Elite `practice` 上反超 `built-in:codex-cli`（`0.707` vs `0.697`，抗漂移 `0.783` vs `0.557`）。
+- [ ] **H3 — 进化档案库与实时中间件**：MAP-Elites 多分支进化树，并将进化后的压缩器挂入 `codex app-server` 实时长会话。
 - [ ] **H4 — 向 Model-RSI 导出高质量轨迹**：将验证通过的优质运行轨迹自动导出为标准数据集，供 [`model-rsi`](../model-rsi/README_zh.md) 使用。

@@ -62,9 +62,32 @@ Self-modifying code can easily cheat if the evaluation loop is sloppy. Harness-R
 
 ---
 
+## Quickstart
+
+```bash
+cd harness-rsi
+uv sync
+
+# 1. Verify Harbor sandbox demo task (nop=0.0, oracle=1.0)
+uv run harbor run -p arena/fix-mini-kvstore -a nop
+uv run harbor run -p arena/fix-mini-kvstore -a oracle
+
+# 2. Evaluate & evolve on OpenRSI context-compaction arena (18% token budget)
+uv run openrsi generate-arena
+uv run openrsi eval --split all
+uv run openrsi evolve --generations 3
+
+# 3. Evaluate & evolve on CompactBench (multi-cycle drift, up to 32k tokens)
+uv run openrsi cb-eval --suite practice --seed-group practice_eval --cases-per-family 2
+uv run openrsi cb-eval --method built-in:codex-cli --suite practice --seed-group practice_eval --cases-per-family 2
+uv run openrsi cb-evolve --suite practice --cases-per-family 1 --generations 2
+```
+
+---
+
 ## Roadmap
 
-- [ ] **H1 — Minimal Self-Editing Loop**: CLI runner that takes a target agent repo + benchmark command, proposes a patch, runs it in a sandbox, and commits or reverts.
-- [ ] **H2 — Trace-Driven Diagnostics**: Structured failure summarization so the Meta-Agent sees *why* tasks failed rather than raw log dumps.
-- [ ] **H3 — Archive & Multi-Objective Gating**: Git-backed evolution tree tracking score, token cost, and latency with held-out validation checks.
+- [x] **H1 — Minimal Self-Editing Loop**: CLI runner (`openrsi`) with sandbox/deterministic verifier and automatic keep/rollback gating.
+- [x] **H2 — Trace-Driven Diagnostics & CompactBench Integration**: Per-family & per-cycle drift telemetry, beating `built-in:codex-cli` on Elite `practice` (`0.707` vs `0.697`, drift resistance `0.783` vs `0.557`).
+- [ ] **H3 — Archive & Multi-Objective Gating**: MAP-Elites evolution tree tracking score, token cost, and latency with live `codex app-server` integration.
 - [ ] **H4 — Trajectory Export for Model-RSI**: Automatically export verified successful runs into a standard dataset format consumable by [`model-rsi`](../model-rsi/README.md).

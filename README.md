@@ -78,33 +78,53 @@ flowchart TB
 
 ---
 
+## Verified Results (Harness-RSI MVP)
+
+Using **zero extra API cost** (powered locally by `codex exec` via ChatGPT OAuth), OpenRSI automatically evolved context compactors from naive sliding-window baselines:
+
+1. **OpenRSI Context-Compaction Arena (`14k–15k` tokens → `18%` budget, hidden `pytest`)**:
+   - Baseline v0 (sliding window) → **`0.000`** on train & unseen held-out
+   - RSI Gen 3 (auto-evolved deterministic extractor) → **`1.000` (8/8)** on train & **`1.000` (8/8)** on unseen held-out (`83.4%` compression)
+2. **CompactBench Elite `practice` (~32k tokens, 8 adversarial families mixed, 4 drift cycles, 191 unseen probes)**:
+   - `built-in:codex-cli` (Codex CLI default compaction): **`0.697`** (`131/191` full-credit, drift resistance `0.557`, Cycle 4: `0.55`)
+   - **`OpenRSICompactor` (RSI-evolved Delta Evidence Ledger)**: **`0.707`** (`140/191` full-credit, drift resistance **`0.783`**, Cycle 4: **`0.67`**, `0` budget violations, `1.00` on `decision_override`, `entity_confusion`, and `provenance_authority`) — see full breakdown in [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md).
+
+---
+
 ## Repository Structure
 
 ```text
 openrsi/
-├── README.md               # Project overview, architecture, comparison & roadmap (EN)
-├── README_zh.md            # Project overview (ZH)
+├── README.md                              # Project overview, architecture & results (EN)
+├── README_zh.md                           # Project overview (ZH)
 ├── harness-rsi/
-│   ├── README.md           # Harness-RSI architecture, evolvable surface & roadmap (EN)
-│   └── README_zh.md        # Harness-RSI documentation (ZH)
+│   ├── README.md / README_zh.md           # Harness-RSI architecture & quickstart
+│   ├── arena/
+│   │   ├── fix-mini-kvstore/              # Harbor sandbox task (nop=0.0, oracle=1.0)
+│   │   └── context-compaction/            # Long-horizon compaction benchmark (Train + Held-out)
+│   ├── harness/
+│   │   ├── compactor.py                   # Evolved deterministic compactor (v1 arena)
+│   │   └── cb_compactor.py                # Evolved Delta Evidence Ledger (CompactBench)
+│   ├── evolver/                           # `openrsi` CLI, Codex client, evaluator & RSI engine
+│   └── reports/                           # Evolution curves, archives & CompactBench leaderboard
 └── model-rsi/
-    ├── README.md           # Model-RSI architecture, training paradigms & roadmap (EN)
-    └── README_zh.md        # Model-RSI documentation (ZH)
+    ├── README.md / README_zh.md           # Model-RSI architecture & roadmap
+    └── requirements-colab.txt             # GPU training dependencies (for Colab Phase 3)
 ```
 
 ---
 
 ## Roadmap
 
-- **Phase 0 — Specification & Architecture (Current)**
-  - Define the dual-track `harness-rsi` and `model-rsi` design, interfaces, and safety boundaries.
-- **Phase 1 — Harness-RSI MVP**
-  - Minimal self-modifying agent loop with git-backed lineage, Docker/sandbox runner, immutable verifier, and automatic keep/rollback gating.
-- **Phase 2 — Benchmarks, Archives & Anti-Hacking**
-  - Train/validation/held-out benchmark split, population archive (branching evolution), cost-aware scoring, and rich trace inspection.
-- **Phase 3 — Model-RSI Pipeline**
+- [x] **Phase 0 — Specification & Architecture**
+  - Dual-track `harness-rsi` and `model-rsi` architecture, interfaces, and safety boundaries.
+- [x] **Phase 1 — Harness-RSI MVP**
+  - Harbor sandbox task (`fix-mini-kvstore`), long-horizon `context-compaction` arena, `CompactBench` integration via local `codex exec`, automatic keep/rollback gating, and evolution curve plotting.
+- [ ] **Phase 2 — Multi-Branch Archives & Live Agent Middleware**
+  - MAP-Elites population archive, multi-objective Pareto tracking, and live `codex app-server` compaction middleware.
+- [ ] **Phase 3 — Model-RSI Pipeline**
   - Automated rollout harvesting, verifier filtering, and pluggable SFT / GRPO / RLVR training recipes on open-weight models.
-- **Phase 4 — Dual-Loop Co-Evolution**
+- [ ] **Phase 4 — Dual-Loop Co-Evolution**
   - Close the flywheel: distill Harness-RSI breakthroughs into Model-RSI checkpoints, and feed promoted checkpoints back into Harness-RSI.
 
 ---

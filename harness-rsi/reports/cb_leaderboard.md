@@ -12,8 +12,23 @@ Evaluated with `compactbench==0.3.0` via local `CodexExecProvider` (`codex exec 
 
 ## Suite 2: `practice` (Elite Difficulty — ~32k opening tokens, all 8 families mixed, 4 drift cycles, `seed_group="practice_eval"` = 191 probes, budget = 2048 tokens)
 
-| Method | Official Score | Full-Credit Probes | Drift Resistance | Decay (C0 - C4) | Cycle 4 Score | Budget Violations | Highlights |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| `built-in:codex-cli` (Codex CLI default) | **0.697** | 131/191 | 0.557 | +0.403 | 0.55 | 0 | Strong `task_continuity` (0.80); heavy decay (`0.91 → 0.55`) |
-| `OpenRSICompactor` Gen 3 (evolved on `starter`) | **0.628** | 126/191 | 0.767 | +0.181 | 0.54 | 0 | Beat `codex-cli` on Drift Resistance (+0.210) & `decision_override` (1.00) |
-| `OpenRSICompactor` Elite Gen 2 (RSI on `practice`) | **0.690** | **138/191** | **0.839** | **+0.125** | **0.65** | **0** | **Beat `codex-cli` on Full-Credit Probes (+7), Drift Resistance (+0.282), Cycle 4 (+0.10), `entity_confusion` (1.00 vs 0.60), `decision_override` (1.00 vs 0.73), `numeric_precision` (0.95 vs 0.70)**; only `task_continuity` (0.05) lags |
+| Method | Official Score | Full-Credit Probes | Drift Resistance | Decay (C0 - C4) | Cycle 4 Score | Mean Tokens | Budget Violations |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `built-in:codex-cli` (Codex CLI default) | **0.697** | 131 / 191 | 0.557 | +0.403 | 0.55 | 1,997 | 0 |
+| `OpenRSICompactor` Gen 3 (evolved on `starter`) | **0.628** | 126 / 191 | 0.767 | +0.181 | 0.54 | 1,838 | 0 |
+| `OpenRSICompactor` Elite Round 1 (RSI on `practice`) | **0.690** | 138 / 191 | **0.839** | **+0.125** | 0.65 | 1,882 | 0 |
+| **`OpenRSICompactor` Elite Round 2 (RSI on `practice`)** | **`0.707`** | **`140 / 191`** | **0.783** | **+0.191** | **`0.67`** | **`1,881`** | **`0`** |
+
+### Per-Family Breakdown on Unseen Elite `practice_eval` (`OpenRSICompactor` Elite Round 2 vs `built-in:codex-cli`)
+
+| Family | `built-in:codex-cli` | **`OpenRSICompactor` (RSI)** | Delta |
+| :--- | :---: | :---: | :---: |
+| `decision_override` | 0.73 | **1.00** | **+0.27** |
+| `entity_confusion` | 0.60 | **1.00** | **+0.40** |
+| `provenance_authority` | 0.80 | **1.00** | **+0.20** |
+| `conditional_scope` | 0.61 | **0.67** | **+0.06** |
+| `numeric_precision` | 0.70 | **0.75** | **+0.05** |
+| `buried_constraint` | 0.88 | 0.59 | -0.29 |
+| `reference_resolution` | 0.45 | 0.30 | -0.15 |
+| `task_continuity` | 0.80 | 0.35 | -0.45 |
+| **Overall Official Score** | **0.697** | **`0.707`** | **+0.010** |

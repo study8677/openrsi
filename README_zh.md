@@ -78,33 +78,53 @@ flowchart TB
 
 ---
 
+## 已验证实验结果（Harness-RSI MVP）
+
+全链路基于本机 `codex exec`（ChatGPT OAuth 订阅，**零额外 API 费用**），OpenRSI 从最朴素的滑动窗口基线自动进化出高性能上下文压缩器：
+
+1. **自研长任务上下文压缩基准（`14k–15k` tokens → `18%` 硬预算，隐藏 `pytest` 验分）**：
+   - Baseline v0（滑动窗口）→ `train` 与未见 `held_out` 均为 **`0.000`**
+   - RSI Gen 3（自动进化出的纯确定性证据抽取器）→ `train` 与未见 `held_out` 均达 **`1.000`（8/8 全通过，83.4% 压缩率）**
+2. **CompactBench Elite `practice`（~32k tokens、8 大对抗家族混合、4 轮连续漂移、191 道未见探针）**：
+   - `built-in:codex-cli`（Codex CLI 默认压缩）：**`0.697`**（`131/191` 满分探针，抗漂移 `0.557`，第 4 轮 `0.55`）
+   - **`OpenRSICompactor`（RSI 进化出的增量证据账本）**：**`0.707`**（`140/191` 满分探针，抗漂移 **`0.783`**，第 4 轮 **`0.67`**，`0` 预算违规，`decision_override` / `entity_confusion` / `provenance_authority` 均达 `1.00`）—— 完整榜单见 [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md)。
+
+---
+
 ## 仓库结构
 
 ```text
 openrsi/
-├── README.md               # 项目总览、架构、对比与路线图（英文）
-├── README_zh.md            # 项目总览（中文）
+├── README.md                              # 项目总览、架构与实验结果（英文）
+├── README_zh.md                           # 项目总览（中文）
 ├── harness-rsi/
-│   ├── README.md           # Harness-RSI 架构说明、可进化面与路线图（英文）
-│   └── README_zh.md        # Harness-RSI 说明文档（中文）
+│   ├── README.md / README_zh.md           # Harness-RSI 架构说明与快速上手
+│   ├── arena/
+│   │   ├── fix-mini-kvstore/              # Harbor 沙盒任务（nop=0.0, oracle=1.0）
+│   │   └── context-compaction/            # 长任务上下文压缩评测集（Train + Held-out）
+│   ├── harness/
+│   │   ├── compactor.py                   # 自动进化后的确定性压缩器（v1 评测集）
+│   │   └── cb_compactor.py                # 自动进化后的增量证据账本（CompactBench）
+│   ├── evolver/                           # `openrsi` CLI、Codex 适配器、评测器与进化引擎
+│   └── reports/                           # 进化曲线、谱系归档与 CompactBench 对比榜单
 └── model-rsi/
-    ├── README.md           # Model-RSI 架构说明、训练范式与路线图（英文）
-    └── README_zh.md        # Model-RSI 说明文档（中文）
+    ├── README.md / README_zh.md           # Model-RSI 架构说明与路线图
+    └── requirements-colab.txt             # GPU 训练依赖（Phase 3 在 Colab 安装）
 ```
 
 ---
 
 ## 路线图（Roadmap）
 
-- **Phase 0 — 架构设计与规范（当前阶段）**
+- [x] **Phase 0 — 架构设计与规范**
   - 明确 `harness-rsi` 与 `model-rsi` 的双轨架构、核心接口与安全边界。
-- **Phase 1 — Harness-RSI 最小闭环（MVP）**
-  - 实现基于 Git 谱系的自修改 Agent 循环、隔离沙盒执行器、不可变验证器以及自动保留/回滚门控。
-- **Phase 2 — 评测体系、进化档案库与防作弊**
-  - 引入训练/验证/留出测试集切分、多分支进化档案库、成本感知评分以及可视化轨迹分析。
-- **Phase 3 — Model-RSI 训练管线**
+- [x] **Phase 1 — Harness-RSI 最小闭环（MVP）**
+  - 完成 Harbor 沙盒任务（`fix-mini-kvstore`）、长任务上下文压缩基准、CompactBench 接入（本机 `codex exec`）、自动保留/回滚门控与进化曲线绘制。
+- [ ] **Phase 2 — 多分支进化档案库与实时 Agent 中间件**
+  - 引入 MAP-Elites 种群档案库、Pareto 多目标跟踪，并将进化后的压缩器接入 `codex app-server` 实时会话。
+- [ ] **Phase 3 — Model-RSI 训练管线**
   - 搭建自动化轨迹采样、验证器过滤，以及面向开源权重的可插拔 SFT / GRPO / RLVR 训练配方。
-- **Phase 4 — 双循环协同进化**
+- [ ] **Phase 4 — 双循环协同进化**
   - 打通飞轮：将 Harness-RSI 产出的突破性轨迹蒸馏进 Model-RSI，再把晋升后的新权重接回 Harness-RSI。
 
 ---
