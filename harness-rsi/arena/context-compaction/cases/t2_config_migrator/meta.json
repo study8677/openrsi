@@ -1,0 +1,9 @@
+{
+  "id": "t2_config_migrator",
+  "split": "train",
+  "target_file": "migrator.py",
+  "raw_tokens": 15645,
+  "max_tokens": 2816,
+  "budget_ratio": 0.18,
+  "num_turns": 18
+}

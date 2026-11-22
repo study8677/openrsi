@@ -1,0 +1,9 @@
+{
+  "id": "h1_billing_ledger",
+  "split": "held_out",
+  "target_file": "ledger.py",
+  "raw_tokens": 12642,
+  "max_tokens": 2275,
+  "budget_ratio": 0.18,
+  "num_turns": 16
+}

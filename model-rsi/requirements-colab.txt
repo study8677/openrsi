@@ -1,0 +1,8 @@
+# model-rsi/requirements-colab.txt (仅在 Colab GPU 环境运行 / Run on Colab GPU only)
+torch
+transformers
+trl
+peft
+vllm
+datasets
+accelerate

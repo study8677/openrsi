@@ -1,0 +1,42 @@
+[
+  {
+    "generation": 0,
+    "status": "baseline",
+    "train_score": 0.0,
+    "train_pass_rate": 0.0,
+    "train_compression_ratio": 0.82,
+    "held_out_score": 0.0,
+    "held_out_pass_rate": 0.0,
+    "notes": "Initial sliding-window baseline"
+  },
+  {
+    "generation": 1,
+    "status": "invalid",
+    "train_score": 0.0,
+    "train_pass_rate": 0.0,
+    "train_compression_ratio": 0.82,
+    "held_out_score": null,
+    "held_out_pass_rate": null,
+    "notes": "Syntax/smoke error: 'NoneType' object has no attribute '__dict__'"
+  },
+  {
+    "generation": 2,
+    "status": "invalid",
+    "train_score": 0.0,
+    "train_pass_rate": 0.0,
+    "train_compression_ratio": 0.82,
+    "held_out_score": null,
+    "held_out_pass_rate": null,
+    "notes": "Syntax/smoke error:   File \"/Users/fanjingwen/Documents/project2/openrsi/harness-rsi/harness/compactor.py\", line 104\n    if line.lstrip().startswith((\"\n                                 ^\nSyntaxError: unterminated string literal (detected at line 104)\n"
+  },
+  {
+    "generation": 3,
+    "status": "kept",
+    "train_score": 1.0,
+    "train_pass_rate": 1.0,
+    "train_compression_ratio": 0.8332,
+    "held_out_score": 1.0,
+    "held_out_pass_rate": 1.0,
+    "notes": "Improved train score; promoted"
+  }
+]

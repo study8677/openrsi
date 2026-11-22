@@ -1,0 +1,9 @@
+{
+  "id": "t1_rate_limiter",
+  "split": "train",
+  "target_file": "rate_limiter.py",
+  "raw_tokens": 14665,
+  "max_tokens": 2639,
+  "budget_ratio": 0.18,
+  "num_turns": 19
+}

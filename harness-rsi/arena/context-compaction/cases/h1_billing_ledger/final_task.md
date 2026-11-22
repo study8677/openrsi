@@ -1,0 +1,1 @@
+Using ONLY the compacted conversation context provided above, implement the complete `ledger.py` in the current workspace directory so it satisfies every active constraint, override, and edge case discussed in the conversation.
