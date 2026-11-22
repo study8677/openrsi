@@ -1,5 +1,9 @@
 # OpenRSI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/study8677/openrsi?style=social)](https://github.com/study8677/openrsi/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/study8677/openrsi/pulls)
+
 [English](./README.md) | **中文**
 
 > 一个开源的 **递归自我改进（Recursive Self-Improvement, RSI）** 引擎：让 AI Agent 在沙盒里自己改代码、自己验分、自动进化。

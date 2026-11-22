@@ -1,5 +1,9 @@
 # OpenRSI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/study8677/openrsi?style=social)](https://github.com/study8677/openrsi/stargazers)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/study8677/openrsi/pulls)
+
 **English** | [中文](./README_zh.md)
 
 > An open-source **Recursive Self-Improvement (RSI)** engine — let your AI Agent rewrite its own code, verify in sandboxes, and evolve automatically.
