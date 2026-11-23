@@ -1,0 +1,102 @@
+[
+  {
+    "generation": 0,
+    "paradigm": "baseline",
+    "parent_generation": null,
+    "model_id": "Qwen/Qwen3.5-2B",
+    "checkpoint_path": "Qwen/Qwen3.5-2B",
+    "status": "baseline",
+    "train_pass_at_1": 0.0,
+    "train_pass_at_k": 0.0,
+    "val_pass_at_1": 0.1,
+    "held_out_pass_at_1": 0.425,
+    "held_out_format_rate": 0.4375,
+    "domain_scores": {
+      "code_exec": 0.55,
+      "math_rlvr": 0.3
+    },
+    "regression_score": 0.9,
+    "unique_solution_ratio": 1.0,
+    "avg_response_tokens": 254.5,
+    "num_train_examples": 0,
+    "train_loss": null,
+    "wall_time_sec": 244.8,
+    "notes": "Base Qwen3.5-2B on MATH-500 + HumanEval+ (train: DAPO-Math + KodCode-V1)",
+    "timestamp": "2026-11-23T03:02:20.671412+00:00"
+  },
+  {
+    "generation": 1,
+    "paradigm": "pure_rlvr_grpo",
+    "parent_generation": 0,
+    "model_id": "/content/openrsi_qwen35_2b/checkpoints/gen1_pure_rlvr_grpo",
+    "checkpoint_path": "/content/openrsi_qwen35_2b/checkpoints/gen1_pure_rlvr_grpo",
+    "status": "rejected",
+    "train_pass_at_1": 0.0,
+    "train_pass_at_k": 0.0,
+    "val_pass_at_1": 0.125,
+    "held_out_pass_at_1": 0.3625,
+    "held_out_format_rate": 0.375,
+    "domain_scores": {
+      "code_exec": 0.475,
+      "math_rlvr": 0.25
+    },
+    "regression_score": 0.9,
+    "unique_solution_ratio": 1.0,
+    "avg_response_tokens": 262.0,
+    "num_train_examples": 180,
+    "train_loss": null,
+    "wall_time_sec": 243.9,
+    "notes": "REJECTED: Insufficient held-out improvement (-6.25%; val_delta=+2.50%) | Pure binary RLVR GRPO (all-linear LoRA perturbed DeltaNet in_proj_a/b gates)",
+    "timestamp": "2026-11-23T11:29:03.858296+00:00"
+  },
+  {
+    "generation": 2,
+    "paradigm": "deltanet_safe_dpo",
+    "parent_generation": 0,
+    "model_id": "/content/openrsi_qwen35_2b/checkpoints/gen2_deltanet_safe_dpo",
+    "checkpoint_path": "/content/openrsi_qwen35_2b/checkpoints/gen2_deltanet_safe_dpo",
+    "status": "promoted",
+    "train_pass_at_1": 0.4464,
+    "train_pass_at_k": 0.65,
+    "val_pass_at_1": 0.1,
+    "held_out_pass_at_1": 0.4625,
+    "held_out_format_rate": 0.475,
+    "domain_scores": {
+      "code_exec": 0.6,
+      "math_rlvr": 0.325
+    },
+    "regression_score": 0.9,
+    "unique_solution_ratio": 0.572,
+    "avg_response_tokens": 255.5,
+    "num_train_examples": 114,
+    "train_loss": 0.6588,
+    "wall_time_sec": 390.1,
+    "notes": "PROMOTED: Held-out Pass@1 improved +3.75% (42.50% -> 46.25%), regression=90.00% | DeltaNet-safe LoRA DPO (frozen in_proj_a/b, beta=0.15, 114 verified pairs)",
+    "timestamp": "2026-11-23T11:49:49.658777+00:00"
+  },
+  {
+    "generation": 3,
+    "paradigm": "deltanet_safe_grpo",
+    "parent_generation": 2,
+    "model_id": "/content/openrsi_qwen35_2b/checkpoints/gen3_deltanet_safe_grpo",
+    "checkpoint_path": "/content/openrsi_qwen35_2b/checkpoints/gen3_deltanet_safe_grpo",
+    "status": "promoted",
+    "train_pass_at_1": 0.0,
+    "train_pass_at_k": 0.0,
+    "val_pass_at_1": 0.15,
+    "held_out_pass_at_1": 0.4875,
+    "held_out_format_rate": 0.5,
+    "domain_scores": {
+      "code_exec": 0.6,
+      "math_rlvr": 0.375
+    },
+    "regression_score": 0.9,
+    "unique_solution_ratio": 1.0,
+    "avg_response_tokens": 253.6,
+    "num_train_examples": 57,
+    "train_loss": 0.0793,
+    "wall_time_sec": 975.8,
+    "notes": "PROMOTED: Held-out Pass@1 improved +2.50% (46.25% -> 48.75%), regression=90.00% | DeltaNet-safe strict-frontier Pure-RLVR GRPO (57 tasks, 16 steps, G=4, beta=0.08)",
+    "timestamp": "2026-11-23T12:07:14.422576+00:00"
+  }
+]

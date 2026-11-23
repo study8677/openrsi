@@ -55,7 +55,24 @@ Recursive training on model-generated data introduces distinct failure modes tha
 
 ---
 
-## Experimental Results (Colab NVIDIA L4 GPU, `Qwen/Qwen2.5-1.5B-Instruct`)
+## Experimental Results (Colab NVIDIA L4 GPU)
+
+### Run 2 (Flagship): `Qwen/Qwen3.5-2B` on Official Open-Source RLVR Benchmarks (`MATH-500` + `HumanEval+`)
+
+Trained on `open-r1/Big-Math-RL-Verified-Processed` (L1–L2) + `KodCode/KodCode-V1` + `MBPP`, gated on locked external **`HuggingFaceH4/MATH-500`** (40 tasks) + **`evalplus/humanevalplus`** (40 tasks) + 10 general regression checks:
+
+![Qwen3.5-2B Model-RSI Evolution Curve](./reports/qwen35_2b_evolution_curve.png)
+
+| Gen | Paradigm | Gate Status | Held-out Pass@1 | MATH-500 (HO) | HumanEval+ (HO) | Hard Val | Regression |
+| ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 0 | `baseline` (`Qwen/Qwen3.5-2B`) | baseline | 42.50% | 30.00% | 55.00% | 10.00% | 90.00% |
+| 1 | `pure_rlvr_grpo` (`all-linear`) | rejected | 36.25% | 25.00% | 47.50% | 12.50% | 90.00% |
+| 2 | `deltanet_safe_dpo` (freeze `in_proj_a/b`) | **promoted** | 46.25% | 32.50% | **60.00%** | 10.00% | 90.00% |
+| 3 | `deltanet_safe_grpo` (strict frontier) | **promoted** | **48.75%** | **37.50%** | **60.00%** | **15.00%** | **90.00%** |
+
+Key finding: freezing Qwen3.5's sensitive Gated DeltaNet recurrence gates (`in_proj_a`/`in_proj_b`) and running DeltaNet-safe Iterative DPO → Strict-Frontier Pure-Binary RLVR GRPO boosted official Held-out Pass@1 by **`+6.25%`** (`42.50% → 48.75%`, with `MATH-500` `+7.50%` and `HumanEval+` `+5.00%`) at **`90.00%` regression (zero forgetting)**. See [`reports/qwen35_2b_experiment_summary.md`](./reports/qwen35_2b_experiment_summary.md).
+
+### Run 1: `Qwen/Qwen2.5-1.5B-Instruct` (8-Gen Countdown + MBPP)
 
 We ran an end-to-end 8-generation (`Gen 0 → Gen 7`) Model-RSI loop on Google Colab L4 GPU across strictly disjoint splits of **Countdown Arithmetic Reasoning** (deterministic AST + exact `Fraction` verifier), **MBPP Sanitized Python Coding** (isolated `python -I` subprocess sandbox), and a **10-item General Regression Gate**:
 

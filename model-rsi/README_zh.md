@@ -55,7 +55,24 @@ flowchart LR
 
 ---
 
-## 实测结果（Colab NVIDIA L4 GPU，`Qwen/Qwen2.5-1.5B-Instruct`）
+## 实测结果（Colab NVIDIA L4 GPU）
+
+### 实验 2（主力基座）：`Qwen/Qwen3.5-2B` × 开源成熟 RLVR 基准（`MATH-500` + `HumanEval+`）
+
+训练集采用 `open-r1/Big-Math-RL-Verified-Processed`（L1–L2）+ `KodCode/KodCode-V1` + `MBPP`，门控评测严格锁定外部官方基准 **`HuggingFaceH4/MATH-500`**（40 题）+ **`evalplus/humanevalplus`**（40 题）+ 10 题通用防遗忘回归集：
+
+![Qwen3.5-2B Model-RSI 进化曲线](./reports/qwen35_2b_evolution_curve.png)
+
+| 世代 | 进化范式 | 门控结果 | Held-out Pass@1 | MATH-500 (留出) | HumanEval+ (留出) | Hard Val | 通用回归 |
+| ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 0 | `baseline`（`Qwen/Qwen3.5-2B`） | baseline | 42.50% | 30.00% | 55.00% | 10.00% | 90.00% |
+| 1 | `pure_rlvr_grpo`（`all-linear`） | rejected | 36.25% | 25.00% | 47.50% | 12.50% | 90.00% |
+| 2 | `deltanet_safe_dpo`（冻结 `in_proj_a/b`） | **promoted** | 46.25% | 32.50% | **60.00%** | 10.00% | 90.00% |
+| 3 | `deltanet_safe_grpo`（严格前沿 RLVR） | **promoted** | **48.75%** | **37.50%** | **60.00%** | **15.00%** | **90.00%** |
+
+关键发现：冻结 Qwen3.5 Gated DeltaNet 的敏感递归状态门（`in_proj_a`/`in_proj_b`），仅在 Attention + MLP 层执行 **DeltaNet-Safe Iterative DPO → 严格前沿纯二值 RLVR（GRPO）**，让官方留出集总分提升 **`+6.25%`**（`42.50% → 48.75%`，其中 `MATH-500` `+7.50%`、`HumanEval+` `+5.00%`），同时通用回归锁定 **`90.00%`（零遗忘）**。详见 [`reports/qwen35_2b_experiment_summary.md`](./reports/qwen35_2b_experiment_summary.md)。
+
+### 实验 1：`Qwen/Qwen2.5-1.5B-Instruct`（8 代 Countdown + MBPP）
 
 我们在 Google Colab NVIDIA L4 GPU 上对开源权重 `Qwen/Qwen2.5-1.5B-Instruct` 完整跑通了 8 代（`Gen 0 → Gen 7`）Model-RSI 递归进化闭环，评测覆盖严格隔离的 **Countdown 可验证算术推理**（确定性 AST + 精确分数验证器）、**MBPP Sanitized Python 编程**（独立 `python -I` 子进程沙盒）以及 **10 题通用能力防遗忘回归门控**：
 

@@ -66,7 +66,8 @@ def train_star_sft(
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
-        target_modules="all-linear",
+        # Keep Gated DeltaNet recurrence gates (in_proj_a/b) frozen on Qwen3.5 to preserve state stability
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     )
 
     sft_args = SFTConfig(
