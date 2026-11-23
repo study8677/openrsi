@@ -34,7 +34,7 @@ def load_model_and_tokenizer(model_path: str, *, bf16: bool = True) -> tuple[Any
     dtype = torch.bfloat16 if (bf16 and torch.cuda.is_available()) else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto",
         trust_remote_code=True,
     )

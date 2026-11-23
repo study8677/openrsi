@@ -60,18 +60,54 @@ def verify_code_exec(
         )
 
     test_code: str = task.verifier_spec["test_code"]
+    test_mode: str = str(task.verifier_spec.get("test_mode", "inline"))
+    entry_point: str = str(task.verifier_spec.get("entry_point", ""))
     format_reward = 0.15 if has_think else 0.05
 
     with tempfile.TemporaryDirectory(prefix="model_rsi_sandbox_") as tmpdir:
-        script_path = Path(tmpdir) / "solution_and_tests.py"
-        full_script = (
-            "import sys\n"
-            "sys.setrecursionlimit(1000)\n\n"
-            f"{code}\n\n"
-            "# --- Immutable Verifier Tests ---\n"
-            f"{test_code}\n"
-            "print('__OPENRSI_ALL_TESTS_PASSED__')\n"
-        )
+        tmp = Path(tmpdir)
+        script_path = tmp / "run_verifier.py"
+
+        if test_mode == "kodcode":
+            # KodCode tests import from `solution` and define `def test_*():` functions
+            (tmp / "solution.py").write_text(code + "\n", encoding="utf-8")
+            (tmp / "test_suite.py").write_text(test_code + "\n", encoding="utf-8")
+            full_script = (
+                "import sys\n"
+                "sys.path.insert(0, '.')\n"
+                "sys.setrecursionlimit(1000)\n"
+                "import test_suite\n"
+                "ran = 0\n"
+                "for name, obj in list(vars(test_suite).items()):\n"
+                "    if name.startswith('test_') and callable(obj):\n"
+                "        obj()\n"
+                "        ran += 1\n"
+                "assert ran > 0, 'No test_* functions found'\n"
+                "print('__OPENRSI_ALL_TESTS_PASSED__')\n"
+            )
+        elif test_mode == "humaneval":
+            # HumanEval+ defines `check(candidate)` and expects `check(<entry_point>)`
+            prefix = str(task.verifier_spec.get("prompt_prefix", ""))
+            # If candidate already defines the function, don't duplicate the header
+            body = code if (f"def {entry_point}" in code) else (prefix + "\n" + code)
+            full_script = (
+                "import sys\n"
+                "sys.setrecursionlimit(1000)\n\n"
+                f"{body}\n\n"
+                "# --- Immutable HumanEval+ Verifier ---\n"
+                f"{test_code}\n"
+                f"check({entry_point})\n"
+                "print('__OPENRSI_ALL_TESTS_PASSED__')\n"
+            )
+        else:
+            full_script = (
+                "import sys\n"
+                "sys.setrecursionlimit(1000)\n\n"
+                f"{code}\n\n"
+                "# --- Immutable Verifier Tests ---\n"
+                f"{test_code}\n"
+                "print('__OPENRSI_ALL_TESTS_PASSED__')\n"
+            )
         script_path.write_text(full_script, encoding="utf-8")
 
         try:
@@ -155,6 +191,106 @@ def load_mbpp_tasks(
     _convert(ds["train"], "train", train_limit)
     _convert(ds["validation"], "val", val_limit)
     _convert(ds["test"], "held_out", held_out_limit)
+    return tasks
+
+
+def load_kodcode_tasks(
+    *,
+    train_limit: int = 80,
+    val_limit: int = 20,
+    min_pass_pct: float = 0.20,
+    max_pass_pct: float = 0.85,
+    seed: int = 42,
+) -> list[VerifiableTask]:
+    """Load frontier-difficulty verified Python tasks from `KodCode/KodCode-V1` (streaming)."""
+    from datasets import load_dataset  # type: ignore
+
+    ds = load_dataset("KodCode/KodCode-V1", split="train", streaming=True)
+    ds = ds.shuffle(seed=seed, buffer_size=1000)
+
+    tasks: list[VerifiableTask] = []
+    total_needed = train_limit + val_limit
+
+    for idx, row in enumerate(ds):
+        if len(tasks) >= total_needed:
+            break
+        pct = float(row.get("gpt_pass_percentage") or 0.0)
+        if not (min_pass_pct <= pct <= max_pass_pct):
+            continue
+        question = str(row.get("question", "")).strip()
+        test_code = str(row.get("test", "")).strip()
+        if not question or not test_code or len(question) > 1500:
+            continue
+        # Skip tests requiring external third-party packages or pytest fixtures
+        if "import pytest" in test_code or "@pytest" in test_code or "numpy" in test_code or "pandas" in test_code:
+            continue
+        if "def test_" not in test_code or "from solution import" not in test_code:
+            continue
+
+        test_info = row.get("test_info") or []
+        sig_hint = ""
+        if isinstance(test_info, list) and test_info and isinstance(test_info[0], dict):
+            decl = test_info[0].get("function_declaration", "")
+            if decl:
+                sig_hint = f"\n\nUse this exact function signature:\n```python\n{decl}\n```"
+
+        split: SplitName = "train" if len(tasks) < train_limit else "val"
+        diff = 1 if pct >= 0.65 else (2 if pct >= 0.40 else 3)
+        tasks.append(
+            VerifiableTask(
+                task_id=f"kodcode_{split}_{row.get('question_id', idx)}",
+                domain="code_exec",
+                split=split,
+                difficulty=diff,
+                system_prompt=CODE_SYSTEM_PROMPT,
+                prompt=f"Solve the following Python programming problem:{sig_hint}\n\n{question}",
+                verifier_spec={"test_code": test_code, "test_mode": "kodcode"},
+                metadata={
+                    "source": "KodCode/KodCode-V1",
+                    "subset": row.get("subset", ""),
+                    "gpt_pass_percentage": pct,
+                },
+            )
+        )
+    return tasks
+
+
+def load_humanevalplus_tasks(*, limit: int = 40, seed: int = 42) -> list[VerifiableTask]:
+    """Load official `evalplus/humanevalplus` tasks as an external Held-out coding benchmark."""
+    from datasets import load_dataset  # type: ignore
+
+    ds = load_dataset("evalplus/humanevalplus", split="test")
+    ds = ds.shuffle(seed=seed)
+
+    tasks: list[VerifiableTask] = []
+    for i, row in enumerate(ds):
+        if i >= limit:
+            break
+        prompt_code = str(row["prompt"]).strip()
+        entry_point = str(row["entry_point"]).strip()
+        test_code = str(row["test"]).strip()
+        tid = str(row["task_id"]).replace("/", "_")
+        tasks.append(
+            VerifiableTask(
+                task_id=f"humanevalplus_ho_{tid}",
+                domain="code_exec",
+                split="held_out",
+                difficulty=3,
+                system_prompt=CODE_SYSTEM_PROMPT,
+                prompt=(
+                    "Complete the following Python function. Return the COMPLETE function "
+                    "implementation (including imports and signature) inside a ```python ... ``` block:\n\n"
+                    f"```python\n{prompt_code}\n```"
+                ),
+                verifier_spec={
+                    "test_code": test_code,
+                    "test_mode": "humaneval",
+                    "entry_point": entry_point,
+                    "prompt_prefix": prompt_code,
+                },
+                metadata={"source": "evalplus/humanevalplus", "entry_point": entry_point},
+            )
+        )
     return tasks
 
 

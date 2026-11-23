@@ -236,3 +236,40 @@ def test_flywheel_harness_import(tmp_path: Path) -> None:
     assert n == 1
     loaded = store.load_all()
     assert loaded[0].source == "harness_rsi"
+
+
+def test_math_rlvr_and_kodcode_verifiers() -> None:
+    from model_rsi.tasks.math_rlvr import verify_math_rlvr
+
+    math_task = VerifiableTask(
+        task_id="m_test_1",
+        domain="math_rlvr",
+        split="held_out",
+        difficulty=2,
+        prompt="Compute 3/4.",
+        verifier_spec={"answer": r"\frac{3}{4}"},
+    )
+    v1 = verify_math_rlvr(math_task, r"Step by step: $6/8 = 3/4$. Final: $\boxed{\frac{3}{4}}$")
+    assert v1.passed and v1.reward == 1.0
+    v2 = verify_math_rlvr(math_task, r"Therefore $\boxed{0.75}$.")
+    assert v2.passed and v2.reward == 1.0
+    v3 = verify_math_rlvr(math_task, r"Therefore $\boxed{\frac{2}{3}}$.")
+    assert not v3.passed and v3.reward == 0.0
+
+    # Test KodCode multi-file sandbox mode
+    kc_task = VerifiableTask(
+        task_id="kc_test_1",
+        domain="code_exec",
+        split="train",
+        difficulty=2,
+        prompt="Write add(a, b).",
+        verifier_spec={
+            "test_mode": "kodcode",
+            "test_code": "from solution import add\n\ndef test_pos():\n    assert add(2, 3) == 5\n\ndef test_neg():\n    assert add(-1, 1) == 0\n",
+        },
+    )
+    vc = verify_code_exec(kc_task, "```python\ndef add(a, b):\n    return a + b\n```")
+    assert vc.passed
+    vc_bad = verify_code_exec(kc_task, "```python\ndef add(a, b):\n    return a - b\n```")
+    assert not vc_bad.passed
+

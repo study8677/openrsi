@@ -52,7 +52,7 @@ def train_iterative_dpo(
 
     model = AutoModelForCausalLM.from_pretrained(
         base_model_path,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
         device_map="auto",
         trust_remote_code=True,
     )
@@ -63,15 +63,7 @@ def train_iterative_dpo(
         lora_dropout=0.05,
         bias="none",
         task_type="CAUSAL_LM",
-        target_modules=[
-            "q_proj",
-            "k_proj",
-            "v_proj",
-            "o_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj",
-        ],
+        target_modules="all-linear",
     )
 
     dpo_args = DPOConfig(
