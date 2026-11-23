@@ -55,9 +55,45 @@ Recursive training on model-generated data introduces distinct failure modes tha
 
 ---
 
+## Experimental Results (Colab NVIDIA L4 GPU, `Qwen/Qwen2.5-1.5B-Instruct`)
+
+We ran an end-to-end 8-generation (`Gen 0 → Gen 7`) Model-RSI loop on Google Colab L4 GPU across strictly disjoint splits of **Countdown Arithmetic Reasoning** (deterministic AST + exact `Fraction` verifier), **MBPP Sanitized Python Coding** (isolated `python -I` subprocess sandbox), and a **10-item General Regression Gate**:
+
+![Model-RSI Evolution Curve](./reports/evolution_curve.png)
+
+| Gen | Paradigm | Gate Status | Held-out Pass@1 | Val Pass@1 | MBPP Code (HO) | Countdown L1 (HO) | Regression |
+| ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 0 | `baseline` | baseline | 15.00% | 18.75% | 50.00% | 0.00% | 90.00% |
+| 1 | `star_sft` (full-seq) | rejected | 15.00% | 18.75% | 37.50% | 12.50% | 90.00% |
+| 2 | `iterative_dpo` | **promoted** | 17.50% | 22.92% | 54.17% | 6.25% | 90.00% |
+| 3 | `grpo_rlvr` | **promoted** | 17.50% | 25.00% | **58.33%** | 0.00% | 90.00% |
+| 4 | `star_sft_comp_only` | **promoted** | **18.75%** | 20.83% | 45.83% | **18.75%** | 80.00% |
+| 5 | `frontier_dpo_v2` | **promoted** | **18.75%** | **31.25%** | 54.17% | 12.50% | **90.00%** |
+| 6 | `lineage_soup` | rejected | 17.50% | 25.00% | 50.00% | 12.50% | 90.00% |
+| 7 | `pure_rlvr_grpo_v2` | rejected | 17.50% | 25.00% | 50.00% | 12.50% | 90.00% |
+
+Full diagnostics (including the Gen 3 length-collapse reward-hacking diagnosis and pure-binary RLVR cure) are archived in [`reports/experiment_summary.md`](./reports/experiment_summary.md) and [`reports/evolution_history.json`](./reports/evolution_history.json).
+
+---
+
+## Quickstart
+
+```bash
+cd model-rsi
+uv run pytest -v                        # Run deterministic verifier, curriculum, gating & flywheel tests
+uv run model-rsi status                 # Inspect multi-generation evolution ledger
+uv run model-rsi plot                   # Render reports/evolution_curve.png
+uv run model-rsi generate-tasks         # Export disjoint train/val/held_out/regression JSONL splits
+uv run model-rsi import-harness         # Import verified Harness-RSI traces (M4 flywheel)
+```
+
+For full GPU post-training (STaR SFT, Iterative DPO, Online GRPO/RLVR, and Lineage Model Soup) on Google Colab (L4 / A100 / H100), install `requirements-colab.txt` and run `colab/run_model_rsi_colab.py`.
+
+---
+
 ## Roadmap
 
-- [ ] **M1 — Unified Trajectory & Verifier Schema**: Standardize how verified rollouts (from direct model sampling or `harness-rsi`) are stored, scored, and filtered.
-- [ ] **M2 — Verified SFT / Rejection Sampling Loop**: End-to-end iterative STaR pipeline on open-weight models with automated held-out gating.
-- [ ] **M3 — RLVR (GRPO) Integration**: Pluggable sandboxed RL training loop for coding and verifiable reasoning tasks.
-- [ ] **M4 — Frontier Curriculum & Dual-Loop Flywheel**: Automatic difficulty scheduling and closed-loop distillation between [`harness-rsi`](../harness-rsi/README.md) and `model-rsi`.
+- [x] **M1 — Unified Trajectory & Verifier Schema**: Standardize how verified rollouts (from direct model sampling or `harness-rsi`) are stored, scored, and filtered (`model_rsi/protocol.py`, `model_rsi/tasks/`).
+- [x] **M2 — Verified SFT / Rejection Sampling Loop**: End-to-end iterative STaR (completion-only LoRA SFT) & Iterative DPO pipelines with automated held-out & regression gating (`model_rsi/trainers/star_sft.py`, `iterative_dpo.py`, `gating.py`).
+- [x] **M3 — RLVR (GRPO) Integration**: Pluggable sandboxed online GRPO training loop with anti-reward-hacking pure-binary verifiable rewards (`model_rsi/trainers/grpo_rlvr.py`).
+- [x] **M4 — Frontier Curriculum & Dual-Loop Flywheel**: Frontier mastery scheduler (`model_rsi/curriculum.py`), lineage weight-space merging (`model_rsi/trainers/lineage_merge.py`), and closed-loop distillation from [`harness-rsi`](../harness-rsi/README.md) (`model_rsi/flywheel.py`).

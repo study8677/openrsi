@@ -55,9 +55,45 @@ flowchart LR
 
 ---
 
+## 实测结果（Colab NVIDIA L4 GPU，`Qwen/Qwen2.5-1.5B-Instruct`）
+
+我们在 Google Colab NVIDIA L4 GPU 上对开源权重 `Qwen/Qwen2.5-1.5B-Instruct` 完整跑通了 8 代（`Gen 0 → Gen 7`）Model-RSI 递归进化闭环，评测覆盖严格隔离的 **Countdown 可验证算术推理**（确定性 AST + 精确分数验证器）、**MBPP Sanitized Python 编程**（独立 `python -I` 子进程沙盒）以及 **10 题通用能力防遗忘回归门控**：
+
+![Model-RSI 进化曲线](./reports/evolution_curve.png)
+
+| 世代 | 进化范式 | 门控结果 | Held-out Pass@1 | Val Pass@1 | MBPP 代码 (留出) | Countdown L1 (留出) | 通用回归 |
+| ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| 0 | `baseline` | baseline | 15.00% | 18.75% | 50.00% | 0.00% | 90.00% |
+| 1 | `star_sft`（全序列） | rejected | 15.00% | 18.75% | 37.50% | 12.50% | 90.00% |
+| 2 | `iterative_dpo` | **promoted** | 17.50% | 22.92% | 54.17% | 6.25% | 90.00% |
+| 3 | `grpo_rlvr` | **promoted** | 17.50% | 25.00% | **58.33%** | 0.00% | 90.00% |
+| 4 | `star_sft_comp_only` | **promoted** | **18.75%** | 20.83% | 45.83% | **18.75%** | 80.00% |
+| 5 | `frontier_dpo_v2` | **promoted** | **18.75%** | **31.25%** | 54.17% | 12.50% | **90.00%** |
+| 6 | `lineage_soup` | rejected | 17.50% | 25.00% | 50.00% | 12.50% | 90.00% |
+| 7 | `pure_rlvr_grpo_v2` | rejected | 17.50% | 25.00% | 50.00% | 12.50% | 90.00% |
+
+完整诊断分析（包含 Gen 3 奖励黑客/长度坍塌发现与纯二值 RLVR 修复）见 [`reports/experiment_summary.md`](./reports/experiment_summary.md) 与 [`reports/evolution_history.json`](./reports/evolution_history.json)。
+
+---
+
+## 快速开始
+
+```bash
+cd model-rsi
+uv run pytest -v                        # 运行确定性验证器、课程、门控与飞轮单测
+uv run model-rsi status                 # 查看多代模型进化账本
+uv run model-rsi plot                   # 生成 reports/evolution_curve.png
+uv run model-rsi generate-tasks         # 导出严格隔离的 train/val/held_out/regression 任务集
+uv run model-rsi import-harness         # 从 harness-rsi 导入已验证轨迹（M4 飞轮）
+```
+
+在 Google Colab GPU（L4 / A100 / H100）上复现完整多代后训练（STaR SFT、Iterative DPO、在线 GRPO/RLVR、谱系权重融合），安装 `requirements-colab.txt` 后运行 `colab/run_model_rsi_colab.py`。
+
+---
+
 ## 路线图（Roadmap）
 
-- [ ] **M1 — 统一轨迹与验证器协议**：标准化可验证轨迹（来自模型直采或 `harness-rsi`）的存储、打分与过滤格式。
-- [ ] **M2 — 验证 SFT / 拒绝采样闭环**：在开源模型上跑通端到端迭代 STaR 管线与自动留出集门控。
-- [ ] **M3 — 接入 RLVR（GRPO）**：提供面向代码与可验证推理任务的可插拔沙盒强化学习训练流。
-- [ ] **M4 — 前沿课程与双循环飞轮**：实现难度自动调度，并与 [`harness-rsi`](../harness-rsi/README_zh.md) 打通闭环蒸馏。
+- [x] **M1 — 统一轨迹与验证器协议**：标准化可验证轨迹（来自模型直采或 `harness-rsi`）的存储、打分与过滤格式（`model_rsi/protocol.py`、`model_rsi/tasks/`）。
+- [x] **M2 — 验证 SFT / 拒绝采样闭环**：在开源模型上跑通端到端 Completion-Only STaR SFT 与 Iterative DPO 管线及自动留出集/回归门控（`model_rsi/trainers/star_sft.py`、`iterative_dpo.py`、`gating.py`）。
+- [x] **M3 — 接入 RLVR（GRPO）**：提供面向代码与可验证推理任务的可插拔沙盒在线强化学习训练流，内置防奖励黑客纯二值验证奖励（`model_rsi/trainers/grpo_rlvr.py`）。
+- [x] **M4 — 前沿课程与双循环飞轮**：实现前沿难度调度（`model_rsi/curriculum.py`）、谱系权重融合（`model_rsi/trainers/lineage_merge.py`），并与 [`harness-rsi`](../harness-rsi/README_zh.md) 打通闭环蒸馏（`model_rsi/flywheel.py`）。
