@@ -46,11 +46,13 @@ class CodexExecProvider(Provider):
         self,
         model: str | None = None,
         reasoning_effort: str = "low",
-        timeout_sec: int = 180,
+        timeout_sec: int = 300,
+        max_retries: int = 3,
     ) -> None:
         self._model = model
         self._reasoning_effort = reasoning_effort
         self._timeout_sec = timeout_sec
+        self._max_retries = max_retries
 
     @property
     def endpoint_kind(self) -> str:
@@ -65,61 +67,73 @@ class CodexExecProvider(Provider):
         parts.append(request.prompt.strip())
         full_prompt = "\n\n".join(parts)
 
-        with tempfile.TemporaryDirectory(prefix="openrsi_cb_codex_") as tmpdir:
-            tmp = Path(tmpdir)
-            out_path = tmp / "last_message.txt"
-            schema_path: Path | None = None
-
-            cmd = [
-                "codex",
-                "exec",
-                "-C",
-                str(tmp),
-                "-s",
-                "read-only",
-                "-c",
-                f'model_reasoning_effort="{self._reasoning_effort}"',
-                "--skip-git-repo-check",
-                "--ephemeral",
-                "--color",
-                "never",
-                "-o",
-                str(out_path),
-            ]
-            chosen_model = self._model or (
-                request.model if request.model and request.model != "codex-default" else None
-            )
-            if chosen_model:
-                cmd.extend(["-m", chosen_model])
-
-            if request.json_schema:
-                schema_path = tmp / "schema.json"
-                schema_path.write_text(json.dumps(request.json_schema), encoding="utf-8")
-                cmd.extend(["--output-schema", str(schema_path)])
-
-            cmd.append("-")
-
-            proc = subprocess.run(
-                cmd,
-                input=full_prompt,
-                text=True,
-                capture_output=True,
-                timeout=self._timeout_sec,
-                check=False,
-            )
-            text = out_path.read_text(encoding="utf-8").strip() if out_path.exists() else ""
-            if proc.returncode != 0 and not text:
-                raise RuntimeError(
-                    f"codex exec failed (rc={proc.returncode}): {proc.stderr.strip()[:400]}"
-                )
-
-        return CompletionResponse(
-            text=text,
-            prompt_tokens=count_tokens(full_prompt),
-            completion_tokens=count_tokens(text),
-            model=chosen_model or "codex-default",
-            raw={"provider": "codex-exec"},
+        last_err: Exception | None = None
+        chosen_model = self._model or (
+            request.model if request.model and request.model != "codex-default" else None
         )
+
+        for attempt in range(1, self._max_retries + 1):
+            with tempfile.TemporaryDirectory(prefix="openrsi_cb_codex_") as tmpdir:
+                tmp = Path(tmpdir)
+                out_path = tmp / "last_message.txt"
+
+                cmd = [
+                    "codex",
+                    "exec",
+                    "-C",
+                    str(tmp),
+                    "-s",
+                    "read-only",
+                    "-c",
+                    f'model_reasoning_effort="{self._reasoning_effort}"',
+                    "--skip-git-repo-check",
+                    "--ephemeral",
+                    "--color",
+                    "never",
+                    "-o",
+                    str(out_path),
+                ]
+                if chosen_model:
+                    cmd.extend(["-m", chosen_model])
+
+                if request.json_schema:
+                    schema_path = tmp / "schema.json"
+                    schema_path.write_text(json.dumps(request.json_schema), encoding="utf-8")
+                    cmd.extend(["--output-schema", str(schema_path)])
+
+                cmd.append("-")
+
+                try:
+                    proc = subprocess.run(
+                        cmd,
+                        input=full_prompt,
+                        text=True,
+                        capture_output=True,
+                        timeout=self._timeout_sec,
+                        check=False,
+                    )
+                    text = out_path.read_text(encoding="utf-8").strip() if out_path.exists() else ""
+                    if proc.returncode == 0 or text:
+                        return CompletionResponse(
+                            text=text,
+                            prompt_tokens=count_tokens(full_prompt),
+                            completion_tokens=count_tokens(text),
+                            model=chosen_model or "codex-default",
+                            raw={"provider": "codex-exec", "attempt": attempt},
+                        )
+                    last_err = RuntimeError(
+                        f"codex exec failed (rc={proc.returncode}, attempt={attempt}): {proc.stderr.strip()[:400]}"
+                    )
+                except subprocess.TimeoutExpired:
+                    last_err = RuntimeError(
+                        f"codex exec timed out after {self._timeout_sec}s (attempt={attempt})"
+                    )
+
+            if attempt < self._max_retries:
+                time.sleep(5 * attempt)
+
+        assert last_err is not None
+        raise last_err
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         return await asyncio.to_thread(self._complete_sync, request)
