@@ -85,9 +85,8 @@ Using **zero extra API cost** (powered locally by `codex exec` via ChatGPT OAuth
 1. **OpenRSI Context-Compaction Arena (`14k–15k` tokens → `18%` budget, hidden `pytest`)**:
    - Baseline v0 (sliding window) → **`0.000`** on train & unseen held-out
    - RSI Gen 3 (auto-evolved deterministic extractor) → **`1.000` (8/8)** on train & **`1.000` (8/8)** on unseen held-out (`83.4%` compression)
-2. **CompactBench Elite `practice` (~32k tokens, 8 adversarial families mixed, 4 drift cycles, 191 unseen probes)**:
-   - `built-in:codex-cli` (Codex CLI default compaction): **`0.697`** (`131/191` full-credit, drift resistance `0.557`, Cycle 4: `0.55`)
-   - **`OpenRSICompactor` (RSI-evolved Delta Evidence Ledger)**: **`0.707`** (`140/191` full-credit, drift resistance **`0.783`**, Cycle 4: **`0.67`**, `0` budget violations, `1.00` on `decision_override`, `entity_confusion`, and `provenance_authority`) — see full breakdown in [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md).
+2. **CompactBench Official Full `practice` Suite (Elite Difficulty — 48/48 cases, ~32k tokens, 8 adversarial families mixed, 4 drift cycles, 4,546 probes)**:
+   - **`OpenRSICompactor` v1 (RSI-evolved Delta Evidence Ledger)**: **`0.762 [95% CI: 0.740, 0.784]`** (`3,535/4,546` full-credit probes, drift resistance **`0.815`**, decay `+0.164` (`0.90 → 0.69`), `0.0%` trap rate, `0.0%` hallucination rate, `0` budget violations; `provenance_authority: 0.98`, `decision_override: 0.95`, `entity_confusion: 0.92`) — see full 48-case breakdown in [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md).
 
 ---
 

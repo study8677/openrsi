@@ -2,33 +2,43 @@
 
 Evaluated with `compactbench==0.3.0` via local `CodexExecProvider` (`codex exec -c model_reasoning_effort="low"`, ChatGPT OAuth, \$0 extra API cost).
 
-## Suite 1: `starter` (`seed_group="default"` — unseen during evolution, 8 families × 3 cycles = 102 probes, budget = 2048 tokens)
+## Official Full Suite: `practice` (Elite Difficulty — 48 cases, ~32k opening tokens, 8 mixed families, 4 drift cycles, 4,546 probes, budget = 2048 tokens)
 
-| Method | Official Score | Drift Resistance | Decay (C0 - C2) | Mean Tokens | Budget Violations | Notes |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| `OpenRSICompactor` v0 (Baseline truncation) | **0.623** | 0.542 | +0.450 | 1,980 | 18 | Drops early rules (`provenance_authority`: 0.33, `conditional_scope`: 0.50) |
-| `built-in:codex-cli` (Codex CLI default) | **0.896** | 1.000 | +0.000 | 1,074 | 0 | `numeric_precision`: 0.67, `conditional_scope`: 0.50 |
-| `OpenRSICompactor` Gen 3 (RSI on `starter`) | **0.896** | 0.958 | +0.042 | 1,438 | 0 | **+0.273 over v0**, tied `codex-cli` overall & beat on `numeric_precision` (0.78 vs 0.67) |
-
-## Suite 2: `practice` (Elite Difficulty — ~32k opening tokens, all 8 families mixed, 4 drift cycles, `seed_group="practice_eval"` = 191 probes, budget = 2048 tokens)
-
-| Method | Official Score | Full-Credit Probes | Drift Resistance | Decay (C0 - C4) | Cycle 4 Score | Mean Tokens | Budget Violations |
+| Method | Cases | Full-Credit Probes | Official Score (95% CI) | Drift Resistance | Decay (C0 - C4) | Stale / Trap / Halluc | Mean Tokens / Violations |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `built-in:codex-cli` (Codex CLI default) | **0.697** | 131 / 191 | 0.557 | +0.403 | 0.55 | 1,997 | 0 |
-| `OpenRSICompactor` Gen 3 (evolved on `starter`) | **0.628** | 126 / 191 | 0.767 | +0.181 | 0.54 | 1,838 | 0 |
-| `OpenRSICompactor` Elite Round 1 (RSI on `practice`) | **0.690** | 138 / 191 | **0.839** | **+0.125** | 0.65 | 1,882 | 0 |
-| **`OpenRSICompactor` Elite Round 2 (RSI on `practice`)** | **`0.707`** | **`140 / 191`** | **0.783** | **+0.191** | **`0.67`** | **`1,881`** | **`0`** |
+| **`OpenRSICompactor` v1 (RSI Delta Evidence Ledger)** | **48 / 48** | **3,535 / 4,546** | **`0.762 [0.740, 0.784]`** | **`0.815`** | **`+0.164`** (`0.90 → 0.69`) | `3.3% / 0.0% / 0.0%` | `1,874 / 0` |
 
-### Per-Family Breakdown on Unseen Elite `practice_eval` (`OpenRSICompactor` Elite Round 2 vs `built-in:codex-cli`)
+### 48-Case Diagnostic Breakdown (Sorted Weak → Strong — Roadmap for Next Evolution)
 
-| Family | `built-in:codex-cli` | **`OpenRSICompactor` (RSI)** | Delta |
-| :--- | :---: | :---: | :---: |
-| `decision_override` | 0.73 | **1.00** | **+0.27** |
-| `entity_confusion` | 0.60 | **1.00** | **+0.40** |
-| `provenance_authority` | 0.80 | **1.00** | **+0.20** |
-| `conditional_scope` | 0.61 | **0.67** | **+0.06** |
-| `numeric_precision` | 0.70 | **0.75** | **+0.05** |
-| `buried_constraint` | 0.88 | 0.59 | -0.29 |
-| `reference_resolution` | 0.45 | 0.30 | -0.15 |
-| `task_continuity` | 0.80 | 0.35 | -0.45 |
-| **Overall Official Score** | **0.697** | **`0.707`** | **+0.010** |
+| Family | 48-Case Score | Status / Evolution Priority |
+| :--- | :---: | :--- |
+| `reference_resolution` | **0.48** | **P0 Bottleneck** — ordinal/superlative/recommender shortlists lost under 32k compaction |
+| `buried_constraint` | **0.65** | **P1 Bottleneck** — rules buried among look-alike sibling projects |
+| `conditional_scope` | **0.66** | **P1 Bottleneck** — scoped/time-bounded rule widening & narrowing |
+| `numeric_precision` | **0.72** | P2 — exact figures/dates/limits shadowed by look-alike projects |
+| `task_continuity` | **0.72** | P2 — ticket board state transitions (`in_review` vs `done`) |
+| `entity_confusion` | **0.92** | Strong (protect against regression) |
+| `decision_override` | **0.95** | Strong (protect against regression) |
+| `provenance_authority` | **0.98** | Near-perfect (protect against regression) |
+
+- **By Probe Category (weak → strong)**: `reference_resolution: 0.54` | `constraint_application: 0.60` | `fact_recall: 0.61` | `task_state: 0.70` | `constraint_recall: 0.72` | `entity_attribution: 0.91` | `decision_state: 0.96` | `abstention: 1.00`.
+- **Full JSON summary**: [`cb_practice48_openrsi_v1.summary.json`](./cb_practice48_openrsi_v1.summary.json)
+
+---
+
+## Quick Comparison Subsets (Early Evolution Checks)
+
+### `starter` (`seed_group="default"`, 8 families × 3 cycles = 102 probes, budget = 2048)
+
+| Method | Official Score | Drift Resistance | Decay (C0 - C2) | Mean Tokens | Budget Violations |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `OpenRSICompactor` v0 (Baseline truncation) | 0.623 | 0.542 | +0.450 | 1,980 | 18 |
+| `built-in:codex-cli` (Codex CLI default) | 0.896 | 1.000 | +0.000 | 1,074 | 0 |
+| `OpenRSICompactor` Gen 3 (RSI on `starter`) | 0.896 | 0.958 | +0.042 | 1,438 | 0 |
+
+### `practice` 2-Case Pilot (`seed_group="practice_eval"`, 191 probes, budget = 2048)
+
+| Method | Official Score | Full-Credit Probes | Drift Resistance | Decay (C0 - C4) | Cycle 4 Score | Budget Violations |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `built-in:codex-cli` (Codex CLI default) | 0.697 | 131 / 191 | 0.557 | +0.403 | 0.55 | 0 |
+| `OpenRSICompactor` v1 (RSI Delta Evidence Ledger) | **0.707** | **140 / 191** | **0.783** | **+0.191** | **0.67** | **0** |

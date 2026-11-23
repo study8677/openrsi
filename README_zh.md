@@ -85,9 +85,8 @@ flowchart TB
 1. **自研长任务上下文压缩基准（`14k–15k` tokens → `18%` 硬预算，隐藏 `pytest` 验分）**：
    - Baseline v0（滑动窗口）→ `train` 与未见 `held_out` 均为 **`0.000`**
    - RSI Gen 3（自动进化出的纯确定性证据抽取器）→ `train` 与未见 `held_out` 均达 **`1.000`（8/8 全通过，83.4% 压缩率）**
-2. **CompactBench Elite `practice`（~32k tokens、8 大对抗家族混合、4 轮连续漂移、191 道未见探针）**：
-   - `built-in:codex-cli`（Codex CLI 默认压缩）：**`0.697`**（`131/191` 满分探针，抗漂移 `0.557`，第 4 轮 `0.55`）
-   - **`OpenRSICompactor`（RSI 进化出的增量证据账本）**：**`0.707`**（`140/191` 满分探针，抗漂移 **`0.783`**，第 4 轮 **`0.67`**，`0` 预算违规，`decision_override` / `entity_confusion` / `provenance_authority` 均达 `1.00`）—— 完整榜单见 [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md)。
+2. **CompactBench 官方全量 `practice`（Elite 难度 — 48/48 题、~32k tokens、8 大对抗家族混合、4 轮连续漂移、4,546 道探针）**：
+   - **`OpenRSICompactor` v1（RSI 自动进化出的增量证据账本）**：**`0.762 [95% CI: 0.740, 0.784]`**（`3,535/4,546` 满分探针，抗漂移 **`0.815`**，第 0→4 轮衰减 `+0.164`（`0.90 → 0.69`），`0.0%` 中招率、`0.0%` 幻觉率、`0` 预算违规；`provenance_authority: 0.98`、`decision_override: 0.95`、`entity_confusion: 0.92`）—— 完整 48 题体检报告见 [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md)。
 
 ---
 
