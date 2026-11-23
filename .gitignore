@@ -23,4 +23,4 @@ build/
 
 # Experiment outputs (keep curated summaries/histories; ignore raw run dumps)
 harness-rsi/jobs/
-harness-rsi/reports/cb_results_*.jsonl
+harness-rsi/reports/*.jsonl

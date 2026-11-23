@@ -130,13 +130,18 @@ class CBRunSummary(BaseModel):
     suite: str
     seed_group: str
     overall_accuracy: float
+    score_ci_low: float = 0.0
+    score_ci_high: float = 0.0
     drift_resistance: float = 0.0
     decay: float = 0.0
     stale_rate: float = 0.0
     trap_rate: float = 0.0
+    hallucination_rate: float = 0.0
+    reader_error_rate: float = 0.0
     mean_artifact_tokens: float = 0.0
     budget_violations: int = 0
     by_family: dict[str, float] = {}
+    by_category: dict[str, float] = {}
     cycle_accuracies: dict[str, float] = {}
     num_cases: int = 0
     total_probes: int = 0
@@ -156,12 +161,25 @@ def run_compactbench_eval(
     model: str | None = None,
     concurrency: int = 2,
     reasoning_effort: str = "low",
+    output_path: Path | None = None,
+    resume: bool = False,
+    traces_path: Path | None = None,
 ) -> CBRunSummary:
     """Run a CompactBench suite via local `codex exec` and return structured metrics."""
     t0 = time.monotonic()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    ts = time.strftime("%Y%m%d_%H%M%S")
-    out_path = REPORTS_DIR / f"cb_results_{suite}_{seed_group}_{ts}.jsonl"
+    if output_path is None:
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        out_path = REPORTS_DIR / f"cb_results_{suite}_{seed_group}_{ts}.jsonl"
+    else:
+        out_path = Path(output_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if traces_path is not None:
+        traces_path = Path(traces_path)
+        traces_path.parent.mkdir(parents=True, exist_ok=True)
+
+    effective_cases = None if (cases_per_family is None or cases_per_family <= 0) else cases_per_family
 
     provider = CodexExecProvider(model=model, reasoning_effort=reasoning_effort)
     args = RunArgs(
@@ -173,9 +191,11 @@ def run_compactbench_eval(
         reader_provider_key="codex-exec",
         reader_model=model or "codex-default",
         drift_cycles=drift_cycles,
-        cases_per_family=cases_per_family,
+        cases_per_family=effective_cases,
         seed_group=seed_group,
         budget_tokens=budget_tokens,
+        traces_path=traces_path,
+        resume=resume and out_path.exists(),
         concurrency=concurrency,
     )
 
@@ -188,13 +208,18 @@ def run_compactbench_eval(
     cycle_total: dict[int, int] = {}
     failure_samples: list[str] = []
     overall_acc = 0.0
+    score_ci_low = 0.0
+    score_ci_high = 0.0
     drift_resistance = 0.0
     decay = 0.0
     stale_rate = 0.0
     trap_rate = 0.0
+    hallucination_rate = 0.0
+    reader_error_rate = 0.0
     mean_artifact_tokens = 0.0
     budget_violations = 0
     by_family: dict[str, float] = {}
+    by_category: dict[str, float] = {}
 
     for ev in iter_events(result_file):
         if isinstance(ev, CaseCompleteEvent):
@@ -227,19 +252,24 @@ def run_compactbench_eval(
                 val = getattr(metrics, "score", None)
                 if isinstance(val, (int, float)):
                     overall_acc = float(val)
+                score_ci_low = float(getattr(metrics, "score_ci_low", overall_acc) or overall_acc)
+                score_ci_high = float(getattr(metrics, "score_ci_high", overall_acc) or overall_acc)
                 drift_resistance = float(getattr(metrics, "drift_resistance", 0.0) or 0.0)
                 decay = float(getattr(metrics, "decay", 0.0) or 0.0)
                 stale_rate = float(getattr(metrics, "stale_rate", 0.0) or 0.0)
                 trap_rate = float(getattr(metrics, "trap_rate", 0.0) or 0.0)
+                hallucination_rate = float(getattr(metrics, "hallucination_rate", 0.0) or 0.0)
+                reader_error_rate = float(getattr(metrics, "reader_error_rate", 0.0) or 0.0)
                 mean_artifact_tokens = float(getattr(metrics, "mean_artifact_tokens", 0.0) or 0.0)
                 budget_violations = int(getattr(metrics, "budget_violations", 0) or 0)
-                raw_fam = getattr(metrics, "by_family", None) or {}
-                for fk, fv in raw_fam.items():
-                    fscore = getattr(fv, "score", None)
-                    if fscore is None and isinstance(fv, dict):
-                        fscore = fv.get("score")
-                    if isinstance(fscore, (int, float)):
-                        by_family[str(fk)] = round(float(fscore), 4)
+                for bucket_name, target in (("by_family", by_family), ("by_category", by_category)):
+                    raw_map = getattr(metrics, bucket_name, None) or {}
+                    for fk, fv in raw_map.items():
+                        fscore = getattr(fv, "score", None)
+                        if fscore is None and isinstance(fv, dict):
+                            fscore = fv.get("score")
+                        if isinstance(fscore, (int, float)):
+                            target[str(fk)] = round(float(fscore), 4)
 
     if overall_acc == 0.0 and total_probes > 0:
         overall_acc = sum(cycle_correct.values()) / total_probes
@@ -249,18 +279,23 @@ def run_compactbench_eval(
         for k in sorted(cycle_total.keys())
     }
 
-    return CBRunSummary(
+    summary = CBRunSummary(
         method_spec=method_spec,
         suite=suite,
         seed_group=seed_group,
         overall_accuracy=round(overall_acc, 4),
+        score_ci_low=round(score_ci_low, 4),
+        score_ci_high=round(score_ci_high, 4),
         drift_resistance=round(drift_resistance, 4),
         decay=round(decay, 4),
         stale_rate=round(stale_rate, 4),
         trap_rate=round(trap_rate, 4),
+        hallucination_rate=round(hallucination_rate, 4),
+        reader_error_rate=round(reader_error_rate, 4),
         mean_artifact_tokens=round(mean_artifact_tokens, 1),
         budget_violations=budget_violations,
         by_family=by_family,
+        by_category=by_category,
         cycle_accuracies=cycle_accs,
         num_cases=cases_count,
         total_probes=total_probes,
@@ -269,6 +304,9 @@ def run_compactbench_eval(
         failure_samples=failure_samples,
         results_path=str(result_file),
     )
+    summary_path = out_path.with_suffix(".summary.json")
+    summary_path.write_text(summary.model_dump_json(indent=2), encoding="utf-8")
+    return summary
 
 
 def print_cb_summary(console: Console, title: str, s: CBRunSummary) -> None:
@@ -278,15 +316,25 @@ def print_cb_summary(console: Console, title: str, s: CBRunSummary) -> None:
     table.add_row("Method", s.method_spec)
     table.add_row("Suite / Seed", f"{s.suite} / {s.seed_group}")
     table.add_row("Cases / Probes", f"{s.num_cases} cases / {s.correct_probes}/{s.total_probes} full-credit")
-    table.add_row("Official Score", f"{s.overall_accuracy:.3f} ({s.overall_accuracy:.1%})")
+    table.add_row(
+        "Official Score (95% CI)",
+        f"{s.overall_accuracy:.3f} [{s.score_ci_low:.3f}, {s.score_ci_high:.3f}] ({s.overall_accuracy:.1%})",
+    )
     table.add_row("Drift Resistance / Decay", f"{s.drift_resistance:.3f} / decay={s.decay:+.3f}")
+    table.add_row(
+        "Stale / Trap / Hallucination",
+        f"stale={s.stale_rate:.1%} | trap={s.trap_rate:.1%} | halluc={s.hallucination_rate:.1%} | reader_err={s.reader_error_rate:.1%}",
+    )
     table.add_row("Mean Artifact Tokens / Violations", f"{s.mean_artifact_tokens:.0f} tok / {s.budget_violations} violations")
     if s.cycle_accuracies:
         cyc_str = " | ".join(f"{k}: {v:.2f}" for k, v in s.cycle_accuracies.items())
         table.add_row("Per-Cycle Score", cyc_str)
     if s.by_family:
-        fam_str = " | ".join(f"{k}: {v:.2f}" for k, v in sorted(s.by_family.items()))
-        table.add_row("By Family", fam_str)
+        fam_str = " | ".join(f"{k}: {v:.2f}" for k, v in sorted(s.by_family.items(), key=lambda x: x[1]))
+        table.add_row("By Family (weak→strong)", fam_str)
+    if s.by_category:
+        cat_str = " | ".join(f"{k}: {v:.2f}" for k, v in sorted(s.by_category.items(), key=lambda x: x[1]))
+        table.add_row("By Category (weak→strong)", cat_str)
     table.add_row("Elapsed", f"{s.elapsed_sec:.1f}s")
     console.print(table)
 

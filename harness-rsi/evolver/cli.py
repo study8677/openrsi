@@ -75,11 +75,16 @@ def cb_eval_cmd(
     ),
     suite: str = typer.Option("starter", help="CompactBench suite: starter | practice | drills"),
     seed_group: str = typer.Option("default", help="Seed group name for reproducible splits"),
-    cases_per_family: Optional[int] = typer.Option(1, help="Cases per family (keep small for fast checks)"),
+    cases_per_family: Optional[int] = typer.Option(
+        None, help="Cases per family (omit or 0 to run the full official suite)"
+    ),
     drift_cycles: Optional[int] = typer.Option(None, help="Override number of drift cycles"),
     budget_tokens: int = typer.Option(2048, help="Token budget per compaction cycle"),
     model: Optional[str] = typer.Option(None, help="Optional Codex model override"),
-    concurrency: int = typer.Option(2, help="Parallel codex exec workers"),
+    concurrency: int = typer.Option(4, help="Parallel codex exec workers"),
+    output: Optional[Path] = typer.Option(None, help="Fixed JSONL output path (enables --resume)"),
+    resume: bool = typer.Option(False, help="Resume an interrupted run from --output"),
+    traces: Optional[Path] = typer.Option(None, help="Optional JSONL path to record full compaction traces"),
 ) -> None:
     """Evaluate a compactor on CompactBench via local `codex exec` (ChatGPT OAuth)."""
     summary = run_compactbench_eval(
@@ -91,6 +96,9 @@ def cb_eval_cmd(
         budget_tokens=budget_tokens,
         model=model,
         concurrency=concurrency,
+        output_path=output,
+        resume=resume,
+        traces_path=traces,
     )
     print_cb_summary(console, f"CompactBench Eval — {suite}", summary)
 
