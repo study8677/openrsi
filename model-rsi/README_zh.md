@@ -1,6 +1,6 @@
 # Model-RSI（模型层自我进化）
 
-[English](./README.md) | **中文** | [← 返回 OpenRSI 首页](../README_zh.md)
+[English](./README.md) | **中文** | [技术报告](./docs/TECHNICAL_REPORT_zh.md) | [← 返回 OpenRSI 首页](../README_zh.md)
 
 **Model-RSI** 通过多代自动化闭环持续提升 AI 模型*自身的参数权重*。它不再单纯依赖人工标注数据，而是让模型自主采样解题或生成任务，通过沙盒中的自动验证器筛选出客观高质量信号，执行自动化后训练，并在严格通过留出测试集门控后晋升为新一代基座权重。
 

@@ -1,6 +1,6 @@
 # Model-RSI
 
-**English** | [中文](./README_zh.md) | [← Back to OpenRSI](../README.md)
+**English** | [中文](./README_zh.md) | [Technical Report (ZH)](./docs/TECHNICAL_REPORT_zh.md) | [← Back to OpenRSI](../README.md)
 
 **Model-RSI** improves the AI model's *internal weights* across successive generations. Instead of relying solely on human-labeled datasets, the model generates its own solutions and tasks, filters or scores them through automated verifiers in sandboxes, trains on the resulting signal, and promotes a stronger checkpoint only after passing strict held-out gates.
 
