@@ -366,41 +366,59 @@ def _extract_python(text: str) -> str | None:
 def run_compactbench_evolution(
     generations: int = 3,
     suite: str = "starter",
+    seed_group: str = "openrsi_dev",
     cases_per_family: int | None = 1,
     drift_cycles: int | None = None,
     budget_tokens: int = 2048,
     model: str | None = None,
-    concurrency: int = 2,
+    concurrency: int = 3,
     compactor_path: Path = DEFAULT_CB_COMPACTOR_PATH,
+    baseline_xray_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     console = Console()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     CB_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
+    xray_block = ""
+    if baseline_xray_path is not None and Path(baseline_xray_path).exists():
+        x = json.loads(Path(baseline_xray_path).read_text(encoding="utf-8"))
+        xray_block = (
+            f"\n## Macro Diagnostic X-Ray (Aggregate Stats Only — {x.get('num_cases', '?')} cases, {x.get('total_probes', '?')} probes)\n"
+            f"- Official Score (95% CI): {x.get('overall_accuracy', 0):.3f} "
+            f"[{x.get('score_ci_low', 0):.3f}, {x.get('score_ci_high', 0):.3f}]\n"
+            f"- Drift Resistance: {x.get('drift_resistance', 0):.3f} | Decay: {x.get('decay', 0):+.3f}\n"
+            f"- By Family (weak->strong): {dict(sorted((x.get('by_family') or {}).items(), key=lambda kv: kv[1]))}\n"
+            f"- By Category (weak->strong): {dict(sorted((x.get('by_category') or {}).items(), key=lambda kv: kv[1]))}\n"
+            "Prioritize fixing the weakest families/categories WITHOUT regressing families >= 0.90!\n"
+        )
+
     method_spec = f"{compactor_path}:OpenRSICompactor"
     best_code = compactor_path.read_text(encoding="utf-8")
     history: list[dict[str, Any]] = []
+    run_tag = time.strftime("%Y%m%d_%H%M")
 
-    console.rule(f"[bold blue]CompactBench Gen 0 — Baseline ({suite})")
+    console.rule(f"[bold blue]CompactBench Gen 0 — Baseline ({suite} / {seed_group})")
     best = run_compactbench_eval(
         method_spec=method_spec,
         suite=suite,
-        seed_group="openrsi_train",
+        seed_group=seed_group,
         cases_per_family=cases_per_family,
         drift_cycles=drift_cycles,
         budget_tokens=budget_tokens,
         model=model,
         concurrency=concurrency,
     )
-    print_cb_summary(console, "Gen 0 (Baseline) — CompactBench", best)
-    (CB_ARCHIVE_DIR / "gen_00_cb_compactor.py").write_text(best_code, encoding="utf-8")
+    print_cb_summary(console, f"Gen 0 (Baseline) — {suite}/{seed_group}", best)
+    (CB_ARCHIVE_DIR / f"{run_tag}_gen_00_cb_compactor.py").write_text(best_code, encoding="utf-8")
     history.append(
         {
             "generation": 0,
             "status": "baseline",
             "accuracy": best.overall_accuracy,
+            "drift_resistance": best.drift_resistance,
             "by_family": best.by_family,
+            "by_category": best.by_category,
             "cycle_accuracies": best.cycle_accuracies,
             "probes": f"{best.correct_probes}/{best.total_probes}",
         }
@@ -425,20 +443,21 @@ provenance_authority, reference_resolution, and task_continuity.
 Critical rules for `OpenRSICompactor(Compactor)`:
 1. Keep class name `OpenRSICompactor(Compactor)` with `name = "openrsi-compactor"` and `async def compact(self, request: CompactionRequest) -> CompactionArtifact`.
 2. In cycle 0, `request.turns` is the opening conversation; in later cycles, `request.previous_artifact` is YOUR previous output and `request.turns` contains ONLY the new turns!
-3. Make SURGICAL, TARGETED improvements to the current best architecture so you FIX the weakest families (e.g. reference_resolution, task_continuity, conditional_scope) WITHOUT regressing families that already score 1.00!
+3. Make SURGICAL, TARGETED improvements to the current best architecture so you FIX the weakest families (especially `reference_resolution`, `buried_constraint`, `conditional_scope`) WITHOUT regressing strong families (`provenance_authority`, `decision_override`, `entity_confusion`)!
 4. Keep the returned `CompactionArtifact(summary_text=...)` strictly within `request.token_budget` tokens (verify with `tiktoken.get_encoding("cl100k_base")`, target <= 92% of budget for 0 violations).
 5. Return the COMPLETE updated `harness/cb_compactor.py` inside a single ```python ... ``` code block.
-
-## Evolution History (learn from what improved vs regressed!)
+{xray_block}
+## Evolution History on `{seed_group}` (learn from what improved vs regressed!)
 {chr(10).join(hist_lines)}
 
-## Current Best Performance
-- Official Score: {best.overall_accuracy:.3f} ({best.overall_accuracy:.1%})
+## Current Best Performance on `{seed_group}`
+- Official Score (95% CI): {best.overall_accuracy:.3f} [{best.score_ci_low:.3f}, {best.score_ci_high:.3f}]
 - Drift Resistance: {best.drift_resistance:.3f} | Decay (first - last): {best.decay:+.3f}
-- Mean Artifact Tokens: {best.mean_artifact_tokens:.0f} | Budget Violations: {best.budget_violations} (aim for 0 violations!)
+- Mean Artifact Tokens: {best.mean_artifact_tokens:.0f} | Budget Violations: {best.budget_violations} (must stay 0!)
 - Per-Cycle Score: {best.cycle_accuracies}
-- Per-Family Score: {best.by_family}
-- Sample Failures:
+- Per-Family Score: {dict(sorted(best.by_family.items(), key=lambda kv: kv[1]))}
+- Per-Category Score: {dict(sorted(best.by_category.items(), key=lambda kv: kv[1]))}
+- Sample Failures on `{seed_group}`:
 {chr(10).join("  - " + f for f in best.failure_samples) or "  (none)"}
 
 ## Current Best `harness/cb_compactor.py`
@@ -446,7 +465,7 @@ Critical rules for `OpenRSICompactor(Compactor)`:
 {best_code}
 ```
 
-Diagnose why the weakest families failed (and avoid breaking strong families), then output the complete improved `harness/cb_compactor.py` inside a single ```python ... ``` block.
+Diagnose WHY `reference_resolution`, `buried_constraint`, and `conditional_scope` lose information under 32k-token multi-cycle compaction (e.g., shortlist order/rank/recommender attributes dropped, sibling-project scope/conditions conflated, or budget packing evicting high-value rows), then output the complete improved `harness/cb_compactor.py` inside a single ```python ... ``` block.
 """
         console.print("[cyan]Proposing candidate patch for harness/cb_compactor.py...[/cyan]")
         reply = call_codex_text(prompt, model=model, timeout_sec=240)
@@ -469,45 +488,47 @@ Diagnose why the weakest families failed (and avoid breaking strong families), t
         cand = run_compactbench_eval(
             method_spec=method_spec,
             suite=suite,
-            seed_group="openrsi_train",
+            seed_group=seed_group,
             cases_per_family=cases_per_family,
             drift_cycles=drift_cycles,
             budget_tokens=budget_tokens,
             model=model,
             concurrency=concurrency,
         )
-        print_cb_summary(console, f"Gen {gen} Candidate — CompactBench", cand)
+        print_cb_summary(console, f"Gen {gen} Candidate — {suite}/{seed_group}", cand)
 
-        if cand.overall_accuracy > best.overall_accuracy + 1e-4:
+        if cand.overall_accuracy > best.overall_accuracy + 1e-4 and cand.budget_violations == 0:
             console.print(
                 f"[bold green]KEPT Gen {gen}![/bold green] "
                 f"{best.overall_accuracy:.2%} -> {cand.overall_accuracy:.2%}"
             )
             best_code = cand_code
             best = cand
-            (CB_ARCHIVE_DIR / f"gen_{gen:02d}_cb_compactor.py").write_text(best_code, encoding="utf-8")
+            (CB_ARCHIVE_DIR / f"{run_tag}_gen_{gen:02d}_cb_compactor.py").write_text(best_code, encoding="utf-8")
             history.append(
                 {
                     "generation": gen,
                     "status": "kept",
                     "accuracy": cand.overall_accuracy,
+                    "drift_resistance": cand.drift_resistance,
                     "by_family": cand.by_family,
+                    "by_category": cand.by_category,
                     "cycle_accuracies": cand.cycle_accuracies,
                     "probes": f"{cand.correct_probes}/{cand.total_probes}",
                 }
             )
         else:
-            console.print(
-                f"[yellow]REVERTED Gen {gen}[/yellow] "
-                f"({cand.overall_accuracy:.2%} <= {best.overall_accuracy:.2%})"
-            )
+            reason = "budget violations > 0" if cand.budget_violations > 0 else f"{cand.overall_accuracy:.2%} <= {best.overall_accuracy:.2%}"
+            console.print(f"[yellow]REVERTED Gen {gen}[/yellow] ({reason})")
             compactor_path.write_text(best_code, encoding="utf-8")
             history.append(
                 {
                     "generation": gen,
                     "status": "reverted",
                     "accuracy": cand.overall_accuracy,
+                    "drift_resistance": cand.drift_resistance,
                     "by_family": cand.by_family,
+                    "by_category": cand.by_category,
                     "cycle_accuracies": cand.cycle_accuracies,
                     "probes": f"{cand.correct_probes}/{cand.total_probes}",
                 }

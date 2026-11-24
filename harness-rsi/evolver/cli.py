@@ -107,21 +107,27 @@ def cb_eval_cmd(
 def cb_evolve_cmd(
     generations: int = typer.Option(3, min=1, max=20, help="Number of RSI evolution generations"),
     suite: str = typer.Option("starter", help="CompactBench suite: starter | practice | drills"),
+    seed_group: str = typer.Option("openrsi_dev", help="Independent dev seed group (keep separate from eval/default)"),
     cases_per_family: Optional[int] = typer.Option(1, help="Cases per family"),
     drift_cycles: Optional[int] = typer.Option(None, help="Override number of drift cycles"),
     budget_tokens: int = typer.Option(2048, help="Token budget per compaction cycle"),
     model: Optional[str] = typer.Option(None, help="Optional Codex model override"),
-    concurrency: int = typer.Option(2, help="Parallel codex exec workers"),
+    concurrency: int = typer.Option(3, help="Parallel codex exec workers"),
+    baseline_xray: Optional[Path] = typer.Option(
+        None, help="Optional aggregate *.summary.json X-ray to guide P0/P1 bottleneck targeting"
+    ),
 ) -> None:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     run_compactbench_evolution(
         generations=generations,
         suite=suite,
+        seed_group=seed_group,
         cases_per_family=cases_per_family,
         drift_cycles=drift_cycles,
         budget_tokens=budget_tokens,
         model=model,
         concurrency=concurrency,
+        baseline_xray_path=baseline_xray,
     )
 
 
