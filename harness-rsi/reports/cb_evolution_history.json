@@ -2,70 +2,103 @@
   {
     "generation": 0,
     "status": "baseline",
-    "accuracy": 0.7396,
+    "accuracy": 0.7389,
+    "drift_resistance": 0.8043,
     "by_family": {
-      "buried_constraint": 0.85,
-      "conditional_scope": 0.4667,
-      "decision_override": 1.0,
-      "entity_confusion": 1.0,
-      "numeric_precision": 0.7,
-      "provenance_authority": 1.0,
-      "reference_resolution": 0.6,
-      "task_continuity": 0.3
+      "buried_constraint": 0.5015,
+      "conditional_scope": 0.6513,
+      "decision_override": 0.9556,
+      "entity_confusion": 0.9535,
+      "numeric_precision": 0.54,
+      "provenance_authority": 0.9111,
+      "reference_resolution": 0.4364,
+      "task_continuity": 0.9615
+    },
+    "by_category": {
+      "abstention": 0.8889,
+      "constraint_application": 0.5849,
+      "constraint_recall": 0.5948,
+      "decision_state": 0.944,
+      "entity_attribution": 0.9587,
+      "fact_recall": 0.5636,
+      "reference_resolution": 0.4444,
+      "task_state": 0.9259
     },
     "cycle_accuracies": {
-      "cycle_0": 0.95,
-      "cycle_1": 0.9,
-      "cycle_2": 0.6875,
-      "cycle_3": 0.65,
-      "cycle_4": 0.7
+      "cycle_0": 0.8886,
+      "cycle_1": 0.8409,
+      "cycle_2": 0.7806,
+      "cycle_3": 0.7252,
+      "cycle_4": 0.6522
     },
-    "probes": "77/100"
+    "probes": "423/552"
   },
   {
     "generation": 1,
     "status": "kept",
-    "accuracy": 0.7819,
+    "accuracy": 0.7593,
+    "drift_resistance": 0.7836,
     "by_family": {
-      "buried_constraint": 0.7556,
-      "conditional_scope": 0.4,
-      "decision_override": 1.0,
-      "entity_confusion": 1.0,
-      "numeric_precision": 0.7,
-      "provenance_authority": 1.0,
-      "reference_resolution": 0.4,
-      "task_continuity": 1.0
+      "buried_constraint": 0.5045,
+      "conditional_scope": 0.7513,
+      "decision_override": 0.6222,
+      "entity_confusion": 0.907,
+      "numeric_precision": 0.7447,
+      "provenance_authority": 0.8444,
+      "reference_resolution": 0.8545,
+      "task_continuity": 0.8462
+    },
+    "by_category": {
+      "abstention": 0.9556,
+      "constraint_application": 0.706,
+      "constraint_recall": 0.5539,
+      "decision_state": 0.688,
+      "entity_attribution": 0.876,
+      "fact_recall": 0.8,
+      "reference_resolution": 0.8444,
+      "task_state": 0.8889
     },
     "cycle_accuracies": {
-      "cycle_0": 0.9,
-      "cycle_1": 0.95,
-      "cycle_2": 0.85,
-      "cycle_3": 0.6833,
-      "cycle_4": 0.6833
+      "cycle_0": 0.8614,
+      "cycle_1": 0.8523,
+      "cycle_2": 0.75,
+      "cycle_3": 0.7707,
+      "cycle_4": 0.6433
     },
-    "probes": "80/100"
+    "probes": "420/552"
   },
   {
     "generation": 2,
-    "status": "reverted",
-    "accuracy": 0.5806,
+    "status": "kept",
+    "accuracy": 0.8096,
+    "drift_resistance": 0.8601,
     "by_family": {
-      "buried_constraint": 0.6444,
-      "conditional_scope": 0.4667,
-      "decision_override": 0.1333,
-      "entity_confusion": 1.0,
-      "numeric_precision": 0.7,
-      "provenance_authority": 1.0,
-      "reference_resolution": 0.0,
-      "task_continuity": 0.7
+      "buried_constraint": 0.7292,
+      "conditional_scope": 0.753,
+      "decision_override": 0.8111,
+      "entity_confusion": 0.9651,
+      "numeric_precision": 0.7083,
+      "provenance_authority": 0.9111,
+      "reference_resolution": 0.6182,
+      "task_continuity": 0.9808
+    },
+    "by_category": {
+      "abstention": 0.9333,
+      "constraint_application": 0.7317,
+      "constraint_recall": 0.7614,
+      "decision_state": 0.848,
+      "entity_attribution": 0.9504,
+      "fact_recall": 0.8,
+      "reference_resolution": 0.5333,
+      "task_state": 1.0
     },
     "cycle_accuracies": {
-      "cycle_0": 0.85,
-      "cycle_1": 0.7333,
-      "cycle_2": 0.5167,
-      "cycle_3": 0.5167,
-      "cycle_4": 0.5167
+      "cycle_0": 0.8818,
+      "cycle_1": 0.8614,
+      "cycle_2": 0.844,
+      "cycle_3": 0.8308,
+      "cycle_4": 0.7286
     },
-    "probes": "61/100"
+    "probes": "452/552"
   }
 ]

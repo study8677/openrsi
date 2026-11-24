@@ -122,7 +122,7 @@ class CodexExecProvider(Provider):
                             raw={"provider": "codex-exec", "attempt": attempt},
                         )
                     last_err = RuntimeError(
-                        f"codex exec failed (rc={proc.returncode}, attempt={attempt}): {proc.stderr.strip()[:400]}"
+                        f"codex exec failed (rc={proc.returncode}, attempt={attempt}): {proc.stderr.strip()[-500:]}"
                     )
                 except subprocess.TimeoutExpired:
                     last_err = RuntimeError(
@@ -130,7 +130,8 @@ class CodexExecProvider(Provider):
                     )
 
             if attempt < self._max_retries:
-                time.sleep(5 * attempt)
+                delay = (20 * attempt) if (last_err and "429" in str(last_err)) else (5 * attempt)
+                time.sleep(delay)
 
         assert last_err is not None
         raise last_err

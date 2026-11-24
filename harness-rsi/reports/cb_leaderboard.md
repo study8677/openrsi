@@ -26,6 +26,20 @@ Evaluated with `compactbench==0.3.0` via local `CodexExecProvider` (`codex exec 
 
 ---
 
+## X-Ray Guided Evolution on Independent Dev Set (`practice`, `seed_group="openrsi_dev"`, 6 cases = 552 probes, 32k tokens, 4 drift cycles)
+
+Using the 48-case X-ray bottlenecks (`reference_resolution`, `buried_constraint`, `conditional_scope`) on an **independent 6-case `openrsi_dev` seed group** (zero overlap with `default` 48-case exam):
+
+| Generation | Official Score (95% CI) | Full-Credit Probes | Drift Resistance | Decay (C0 - C4) | Cycle 4 | `reference_res` | `buried_const` | `cond_scope` | `numeric_prec` | Budget Violations |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Gen 0 (`OpenRSICompactor` v1)** | `0.739 [0.700, 0.757]` | 423 / 552 | 0.804 | +0.175 | 0.65 | 0.44 | 0.50 | 0.65 | 0.54 | 0 |
+| **Gen 1 (`KEPT`)** | `0.759 [0.700, 0.813]` | 420 / 552 | 0.784 | +0.178 | 0.64 | 0.85 | 0.50 | 0.75 | 0.74 | 0 |
+| **Gen 2 (`KEPT` — `OpenRSICompactor` v2)** | **`0.810 [0.769, 0.859]`** | **`452 / 552`** | **`0.860`** | **`+0.110`** | **`0.73`** | **`0.62`** | **`0.73`** | **`0.75`** | **`0.71`** | **`0`** |
+
+> Statistically significant gain on independent Dev (`[0.769, 0.859]` vs `[0.700, 0.757]` — non-overlapping 95% CIs, **+7.1 pts**, +29 full-credit probes, Cycle 4 jumped `0.65 → 0.73`). Ready for full 48-case `default` re-verification!
+
+---
+
 ## Quick Comparison Subsets (Early Evolution Checks)
 
 ### `starter` (`seed_group="default"`, 8 families × 3 cycles = 102 probes, budget = 2048)
