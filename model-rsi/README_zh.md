@@ -55,7 +55,17 @@ flowchart LR
 
 ---
 
-## 实测结果（Colab NVIDIA L4 GPU）
+## 实测结果（Colab NVIDIA GPU）
+
+### 实验 3（Phase 4 双循环飞轮闭环）：`Harness-RSI ↔ Model-RSI` × 官方 `CompactBench`
+
+把 `harness-rsi` 产出的 48 个 Elite 案例（4,659 个官方确定性探针，按 `case_id` 严格 36/6/6 隔离切分）通过飞轮蒸馏 + 在线难例挖掘纠偏注入 `Qwen/Qwen3.5-2B`（冻结 DeltaNet `in_proj_a/b`），再通过 [HFCompactBenchProvider](./model_rsi/flywheel_provider.py) 反向接回官方 `compactbench==0.3.0` 与 `OpenRSICompactor v2` 完成 2×2 消融实测：
+
+![Phase 4A 飞轮进化曲线](./reports/flywheel_evolution_curve.png)
+![Phase 4B 2×2 双循环对照](./reports/flywheel_ablation_4way.png)
+
+- **Phase 4A（`Harness → Model`，249 个未见 32k Elite 官方探针）**：`53.15% (Gen 0) → 56.97% (Gen 1 蒸馏) → 59.28% (Gen 3 难例纠偏)`（**`+6.13%`**，满分探针 `127/249 → 141/249`，JSON 合规 `100%`，通用回归稳锁 `90.00%`；P0 瓶颈 `reference_resolution` **`52.78% → 67.50%` (+14.72%)**，P1 瓶颈 `conditional_scope` **`32.81% → 46.25%` (+13.44%)**）。
+- **Phase 4B（`Model → Harness`，官方 `starter` 102 探针 2×2 对照）**：进化后的 `OpenRSI-Qwen3.5-2B-Flywheel` 在 `truncate-last-n` 下提升 **`+2.06%`**（`56.20% → 58.26%`，抗漂移 `+5.64%`），在接入 `OpenRSICompactor v2` 下提升 **`+3.70%`**（`45.95% → 49.65%`）并将陈旧记忆错误率大幅压降 **`-13.33%`**（`53.33% → 40.00%`）。详见 [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md)。
 
 ### 实验 2（主力基座）：`Qwen/Qwen3.5-2B` × 开源成熟 RLVR 基准（`MATH-500` + `HumanEval+`）
 

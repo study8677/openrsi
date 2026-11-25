@@ -55,7 +55,17 @@ Recursive training on model-generated data introduces distinct failure modes tha
 
 ---
 
-## Experimental Results (Colab NVIDIA L4 GPU)
+## Experimental Results (Colab NVIDIA GPU)
+
+### Run 3 (Phase 4 Dual-Loop Flywheel Closure): `Harness-RSI ↔ Model-RSI` on Official `CompactBench`
+
+Closed the full Phase 4 Dual-Loop Flywheel using `harness-rsi`'s 48 Elite cases (4,659 official deterministic probes, strictly split 36/6/6 by `case_id`) to distill and hard-negative-refine `Qwen/Qwen3.5-2B` (DeltaNet-Safe), then plugged the evolved `OpenRSI-Qwen3.5-2B-Flywheel` back into official `compactbench==0.3.0` via [HFCompactBenchProvider](./model_rsi/flywheel_provider.py) for a live 2×2 ablation with `OpenRSICompactor v2`:
+
+![Phase 4A Flywheel Evolution Curve](./reports/flywheel_evolution_curve.png)
+![Phase 4B 2×2 Dual-Loop Ablation](./reports/flywheel_ablation_4way.png)
+
+- **Phase 4A (`Harness → Model`, 249 unseen 32k Elite probes)**: `53.15% (Gen 0) → 56.97% (Gen 1 Distill) → 59.28% (Gen 3 Hard-Neg STaR)` (**`+6.13%`**, full-credit `127/249 → 141/249`, JSON `100%`, regression locked at `90.00%`; P0 `reference_resolution` **`52.78% → 67.50%` (+14.72%)**, P1 `conditional_scope` **`32.81% → 46.25%` (+13.44%)**).
+- **Phase 4B (`Model → Harness`, official `starter` 102-probe 2×2 ablation)**: `OpenRSI-Qwen3.5-2B-Flywheel` improves over raw `Qwen3.5-2B` under both `truncate-last-n` (`56.20% → 58.26%`, **`+2.06%`**, drift resistance `+5.64%`) and `OpenRSICompactor v2` (`45.95% → 49.65%`, **`+3.70%`**, stale-memory rate cut **`-13.33%`** from `53.33% → 40.00%`). Full analysis in [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md).
 
 ### Run 2 (Flagship): `Qwen/Qwen3.5-2B` on Official Open-Source RLVR Benchmarks (`MATH-500` + `HumanEval+`)
 

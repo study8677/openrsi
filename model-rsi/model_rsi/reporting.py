@@ -77,7 +77,7 @@ def plot_evolution_curve(
     ax1.set_ylabel("Accuracy / Pass@1 (%)", fontsize=10)
     ax1.set_title("Held-out Generalization & Regression Gate", fontsize=11, fontweight="bold")
     ax1.grid(True, alpha=0.3)
-    ax1.legend(loc="center right", fontsize=8.5)
+    ax1.legend(loc="lower left", fontsize=8.5)
 
     # Panel 2: Per-Domain / Per-Difficulty Held-out Breakdown
     all_keys: list[str] = []
