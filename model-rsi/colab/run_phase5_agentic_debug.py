@@ -51,7 +51,7 @@ from model_rsi.tasks.regression import get_regression_suite, verify_regression
 
 
 def _hardware_bf16() -> bool:
-    return torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+    return torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
 
 
 def _format_chat(tok: Any, msgs: list[dict[str, str]]) -> str:

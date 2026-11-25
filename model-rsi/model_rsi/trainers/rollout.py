@@ -43,7 +43,8 @@ def load_model_and_tokenizer(model_path: str, *, bf16: bool | None = None) -> tu
     tokenizer.padding_side = "left"
 
     if torch.cuda.is_available():
-        use_bf16 = torch.cuda.is_bf16_supported() if bf16 is None else (bf16 and torch.cuda.is_bf16_supported())
+        native_bf16 = torch.cuda.get_device_capability()[0] >= 8
+        use_bf16 = native_bf16 if bf16 is None else (bf16 and native_bf16)
         dtype = torch.bfloat16 if use_bf16 else torch.float16
         dev_map: Any = {"": 0} if torch.cuda.device_count() == 1 else "auto"
     else:

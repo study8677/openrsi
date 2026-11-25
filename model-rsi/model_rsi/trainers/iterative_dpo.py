@@ -56,7 +56,7 @@ def train_iterative_dpo(
     ds = Dataset.from_list(rows)
 
     has_cuda = torch.cuda.is_available()
-    use_bf16 = has_cuda and torch.cuda.is_bf16_supported()
+    use_bf16 = has_cuda and torch.cuda.get_device_capability()[0] >= 8
     use_fp16 = has_cuda and not use_bf16
     dev_map: Any = {"": 0} if (has_cuda and torch.cuda.device_count() == 1) else "auto"
 

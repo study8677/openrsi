@@ -44,7 +44,7 @@ from model_rsi.trainers.lineage_merge import merge_task_arithmetic
 
 
 def _hardware_bf16() -> bool:
-    return torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+    return torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
 
 
 def _format_chat(tok: Any, msgs: list[dict[str, str]]) -> str:
