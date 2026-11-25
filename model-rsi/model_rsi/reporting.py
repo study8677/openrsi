@@ -114,3 +114,62 @@ def plot_evolution_curve(
     fig.savefig(p, bbox_inches="tight")
     plt.close(fig)
     return p
+
+
+def plot_unified_multidomain_chart(
+    benchmarks: list[str],
+    series: dict[str, list[float]],
+    out_path: str | Path,
+    *,
+    title: str = "OpenRSI Phase 6 — Unified Multi-Domain Model-RSI Benchmark",
+) -> Path:
+    """Plot grouped multi-domain comparison across Base, Specialists, and Unified model."""
+    p = Path(out_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if not benchmarks or not series:
+        return p
+
+    n_b = len(benchmarks)
+    names = list(series.keys())
+    n_s = len(names)
+    palette = ["#94a3b8", "#3b82f6", "#10b981", "#7c3aed", "#f59e0b"]
+
+    fig, ax = plt.subplots(figsize=(13.5, 5.6), dpi=150)
+    width = 0.78 / max(1, n_s)
+    xs = list(range(n_b))
+
+    for s_idx, name in enumerate(names):
+        vals = [v * 100.0 for v in series[name]]
+        offsets = [x - 0.39 + width * (s_idx + 0.5) for x in xs]
+        bars = ax.bar(
+            offsets,
+            vals,
+            width=width * 0.92,
+            label=name,
+            color=palette[s_idx % len(palette)],
+            edgecolor="#1e293b",
+            linewidth=0.6,
+        )
+        for bar, val in zip(bars, vals):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                val + 1.2,
+                f"{val:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize=7.8,
+                fontweight="bold",
+            )
+
+    ax.set_xticks(xs)
+    ax.set_xticklabels(benchmarks, fontsize=9.2, rotation=10, ha="right")
+    ax.set_ylim(0, 112)
+    ax.set_ylabel("Official Held-out Score (%)", fontsize=10)
+    ax.set_title(title, fontsize=12.5, fontweight="bold")
+    ax.grid(axis="y", alpha=0.3)
+    ax.legend(loc="upper right", fontsize=8.8)
+
+    fig.tight_layout()
+    fig.savefig(p, bbox_inches="tight")
+    plt.close(fig)
+    return p
