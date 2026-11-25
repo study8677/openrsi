@@ -1,0 +1,118 @@
+{
+  "results_path": "reports/cb_practice48_openrsi_v1.jsonl",
+  "traces_path": "reports/cb_practice48_openrsi_v1.traces.jsonl",
+  "num_cases": 48,
+  "num_cycles": 240,
+  "total_probes": 4546,
+  "overall_score": 0.7622,
+  "saturated_cycles": 240,
+  "saturated_cycle_rate": 1.0,
+  "fallback_cycles": 0,
+  "fallback_cycle_rate": 0.0,
+  "mean_rows_per_ledger": 53.8,
+  "family_modes": [
+    {
+      "family": "reference_resolution",
+      "probes": 480,
+      "mean_score": 0.5208,
+      "failed_probes": 230,
+      "birth_loss": 70,
+      "drift_loss": 160,
+      "false_abstention": 229,
+      "wrong_answer": 1,
+      "stale_count": 1,
+      "trapped_count": 0
+    },
+    {
+      "family": "conditional_scope",
+      "probes": 659,
+      "mean_score": 0.6626,
+      "failed_probes": 226,
+      "birth_loss": 196,
+      "drift_loss": 30,
+      "false_abstention": 19,
+      "wrong_answer": 207,
+      "stale_count": 6,
+      "trapped_count": 0
+    },
+    {
+      "family": "buried_constraint",
+      "probes": 596,
+      "mean_score": 0.6896,
+      "failed_probes": 219,
+      "birth_loss": 142,
+      "drift_loss": 77,
+      "false_abstention": 55,
+      "wrong_answer": 164,
+      "stale_count": 22,
+      "trapped_count": 0
+    },
+    {
+      "family": "task_continuity",
+      "probes": 452,
+      "mean_score": 0.7249,
+      "failed_probes": 130,
+      "birth_loss": 17,
+      "drift_loss": 113,
+      "false_abstention": 114,
+      "wrong_answer": 16,
+      "stale_count": 0,
+      "trapped_count": 0
+    },
+    {
+      "family": "numeric_precision",
+      "probes": 480,
+      "mean_score": 0.7604,
+      "failed_probes": 115,
+      "birth_loss": 56,
+      "drift_loss": 59,
+      "false_abstention": 97,
+      "wrong_answer": 18,
+      "stale_count": 13,
+      "trapped_count": 0
+    },
+    {
+      "family": "entity_confusion",
+      "probes": 692,
+      "mean_score": 0.9234,
+      "failed_probes": 53,
+      "birth_loss": 49,
+      "drift_loss": 4,
+      "false_abstention": 48,
+      "wrong_answer": 5,
+      "stale_count": 3,
+      "trapped_count": 0
+    },
+    {
+      "family": "decision_override",
+      "probes": 707,
+      "mean_score": 0.9547,
+      "failed_probes": 32,
+      "birth_loss": 20,
+      "drift_loss": 12,
+      "false_abstention": 17,
+      "wrong_answer": 15,
+      "stale_count": 12,
+      "trapped_count": 0
+    },
+    {
+      "family": "provenance_authority",
+      "probes": 480,
+      "mean_score": 0.9875,
+      "failed_probes": 6,
+      "birth_loss": 3,
+      "drift_loss": 3,
+      "false_abstention": 6,
+      "wrong_answer": 0,
+      "stale_count": 0,
+      "trapped_count": 0
+    }
+  ],
+  "top_actionable_findings": [
+    "Budget saturation is high (240/240 cycles = 100.0% >= 88% of budget): rows are actively competing for budget; tighter record density or smarter eviction directly recovers recall.",
+    "Weak family `reference_resolution` (0.52): 230 failures — primarily drift-loss (evicted/corrupted in later cycles) (70 birth vs 160 drift) & false-abstention (fact dropped/missing) (229 abstain vs 1 wrong, stale=1).",
+    "Weak family `conditional_scope` (0.66): 226 failures — primarily birth-loss (missed on origin cycle) (196 birth vs 30 drift) & wrong-answer (entity/scope/value confusion) (19 abstain vs 207 wrong, stale=6).",
+    "Weak family `buried_constraint` (0.69): 219 failures — primarily birth-loss (missed on origin cycle) (142 birth vs 77 drift) & wrong-answer (entity/scope/value confusion) (55 abstain vs 164 wrong, stale=22).",
+    "Weak family `task_continuity` (0.72): 130 failures — primarily drift-loss (evicted/corrupted in later cycles) (17 birth vs 113 drift) & false-abstention (fact dropped/missing) (114 abstain vs 16 wrong, stale=0)."
+  ]
+}

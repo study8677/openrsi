@@ -17,6 +17,7 @@ from evolver.cb_adapter import (
 )
 from evolver.engine import _print_eval_table, run_evolution
 from evolver.evaluator import HARNESS_RSI_ROOT, evaluate_suite
+from evolver.trace_analyzer import analyze_run, print_trace_diagnostics
 
 app = typer.Typer(help="OpenRSI — Harness-RSI Context Compaction Evolution Engine")
 console = Console()
@@ -116,6 +117,9 @@ def cb_evolve_cmd(
     baseline_xray: Optional[Path] = typer.Option(
         None, help="Optional aggregate *.summary.json X-ray to guide P0/P1 bottleneck targeting"
     ),
+    diagnostics: Optional[Path] = typer.Option(
+        None, help="Optional *.diagnostics.json from `openrsi cb-analyze` for root-cause guidance"
+    ),
 ) -> None:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     run_compactbench_evolution(
@@ -128,7 +132,23 @@ def cb_evolve_cmd(
         model=model,
         concurrency=concurrency,
         baseline_xray_path=baseline_xray,
+        diagnostics_path=diagnostics,
     )
+
+
+@app.command("cb-analyze")
+def cb_analyze_cmd(
+    results: Path = typer.Argument(..., help="Path to CompactBench results .jsonl"),
+    traces: Optional[Path] = typer.Option(None, help="Optional path to CompactBench traces .jsonl"),
+    save_json: Optional[Path] = typer.Option(None, help="Optional path to save diagnostic report JSON"),
+) -> None:
+    """Analyze CompactBench results + traces into leak-free structural failure modes."""
+    report = analyze_run(results_path=results, traces_path=traces)
+    print_trace_diagnostics(console, report)
+    if save_json is not None:
+        save_json.parent.mkdir(parents=True, exist_ok=True)
+        save_json.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        console.print(f"\n[green]Saved structural diagnostics to {save_json}[/green]")
 
 
 if __name__ == "__main__":

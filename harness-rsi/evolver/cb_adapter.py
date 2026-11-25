@@ -47,7 +47,7 @@ class CodexExecProvider(Provider):
         model: str | None = None,
         reasoning_effort: str = "low",
         timeout_sec: int = 300,
-        max_retries: int = 3,
+        max_retries: int = 5,
     ) -> None:
         self._model = model
         self._reasoning_effort = reasoning_effort
@@ -130,7 +130,7 @@ class CodexExecProvider(Provider):
                     )
 
             if attempt < self._max_retries:
-                delay = (20 * attempt) if (last_err and "429" in str(last_err)) else (5 * attempt)
+                delay = (30 * attempt) if (last_err and "429" in str(last_err)) else (5 * attempt)
                 time.sleep(delay)
 
         assert last_err is not None
@@ -375,6 +375,7 @@ def run_compactbench_evolution(
     concurrency: int = 3,
     compactor_path: Path = DEFAULT_CB_COMPACTOR_PATH,
     baseline_xray_path: Path | None = None,
+    diagnostics_path: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     console = Console()
@@ -393,6 +394,15 @@ def run_compactbench_evolution(
             f"- By Category (weak->strong): {dict(sorted((x.get('by_category') or {}).items(), key=lambda kv: kv[1]))}\n"
             "Prioritize fixing the weakest families/categories WITHOUT regressing families >= 0.90!\n"
         )
+    if diagnostics_path is not None and Path(diagnostics_path).exists():
+        d = json.loads(Path(diagnostics_path).read_text(encoding="utf-8"))
+        findings = d.get("top_actionable_findings") or []
+        if findings:
+            xray_block += (
+                "\n## Structural Root-Cause Diagnostics (Birth-Loss vs Drift-Eviction vs Confusion)\n"
+                + "\n".join(f"- {f}" for f in findings)
+                + "\n"
+            )
 
     method_spec = f"{compactor_path}:OpenRSICompactor"
     best_code = compactor_path.read_text(encoding="utf-8")
