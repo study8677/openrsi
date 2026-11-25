@@ -394,4 +394,78 @@ def test_phase42_compactor_patch_verifier_and_diff() -> None:
     ).passed
 
 
+def test_phase5_agentic_debug_loop_and_builders() -> None:
+    from model_rsi.tasks.agentic_debug import (
+        AgenticEpisode,
+        build_agentic_repair_dpo_pairs,
+        build_agentic_repair_sft_examples,
+        build_repair_prompt,
+        summarize_agentic_episodes,
+    )
+
+    task = builtin_code_tasks()[0]  # rle_encode
+    bad_code = "```python\ndef rle_encode(s):\n    return s\n```"
+    good_code = (
+        "```python\n"
+        "def rle_encode(s: str) -> str:\n"
+        "    if not s: return ''\n"
+        "    out, ch, cnt = [], s[0], 1\n"
+        "    for c in s[1:]:\n"
+        "        if c == ch: cnt += 1\n"
+        "        else:\n"
+        "            out.append(f'{ch}{cnt}')\n"
+        "            ch, cnt = c, 1\n"
+        "    out.append(f'{ch}{cnt}')\n"
+        "    return ''.join(out)\n"
+        "```"
+    )
+    v_bad = verify_code_exec(task, bad_code)
+    v_good = verify_code_exec(task, good_code)
+    assert not v_bad.passed and v_good.passed
+
+    r_prompt = build_repair_prompt(v_bad)
+    assert "failed automated unit-test verification" in r_prompt
+
+    ep_repaired = AgenticEpisode(
+        task_id="t_code_1",
+        split="train",
+        difficulty=2,
+        prompt=task.prompt,
+        system_prompt=task.system_prompt,
+        turn1_response=bad_code,
+        turn1_verification=v_bad,
+        repair_prompt=r_prompt,
+        turn2_response=good_code,
+        turn2_verification=v_good,
+        metadata={"dataset": "mbpp"},
+    )
+    ep_still_bad = AgenticEpisode(
+        task_id="t_code_1",
+        split="train",
+        difficulty=2,
+        prompt=task.prompt,
+        system_prompt=task.system_prompt,
+        turn1_response=bad_code,
+        turn1_verification=v_bad,
+        repair_prompt=r_prompt,
+        turn2_response=bad_code,
+        turn2_verification=v_bad,
+        metadata={"dataset": "mbpp"},
+    )
+    summary = summarize_agentic_episodes([ep_repaired, ep_still_bad])
+    assert summary["turn1_pass_at_1"] == 0.0
+    assert summary["turn2_pass_at_1"] == 0.5
+    assert summary["repair_conversion_rate"] == 0.5
+
+    sft = build_agentic_repair_sft_examples([ep_repaired, ep_still_bad], repair_upweight=2)
+    assert len(sft) == 2
+    assert len(sft[0]["messages"]) == 5
+
+    dpo = build_agentic_repair_dpo_pairs([ep_repaired, ep_still_bad])
+    assert len(dpo) == 1
+    assert dpo[0]["chosen"] == good_code
+    assert dpo[0]["rejected"] == bad_code
+
+
+
 

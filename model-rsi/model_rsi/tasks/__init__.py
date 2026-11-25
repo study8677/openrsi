@@ -1,6 +1,7 @@
 """Verifiable task suites and immutable deterministic verifiers."""
 
 from model_rsi.protocol import VerifiableTask, VerificationResult
+from model_rsi.tasks.agentic_debug import verify_agentic_repair
 from model_rsi.tasks.code_exec import verify_code_exec
 from model_rsi.tasks.compactbench_patch import verify_compactor_patch
 from model_rsi.tasks.compactbench_rlvr import verify_compactbench_batch
@@ -21,6 +22,8 @@ def verify_response(task: VerifiableTask, response: str) -> VerificationResult:
         return verify_compactbench_batch(task, response)
     if task.domain == "compactbench_patch":
         return verify_compactor_patch(task, response)
+    if task.domain == "agentic_debug":
+        return verify_agentic_repair(task, response)
     if task.domain == "regression":
         return verify_regression(task, response)
     raise ValueError(f"Unsupported task domain: {task.domain}")
@@ -33,5 +36,6 @@ __all__ = [
     "verify_math_rlvr",
     "verify_compactbench_batch",
     "verify_compactor_patch",
+    "verify_agentic_repair",
     "verify_regression",
 ]
