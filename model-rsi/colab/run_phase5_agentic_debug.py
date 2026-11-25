@@ -43,7 +43,7 @@ from model_rsi.tasks.agentic_debug import (
     summarize_agentic_episodes,
 )
 from model_rsi.tasks.code_exec import (
-    load_humaneval_plus_tasks,
+    load_humanevalplus_tasks,
     load_kodcode_tasks,
     load_mbpp_tasks,
 )
@@ -125,12 +125,12 @@ def run_phase5(
     rep_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Load strictly isolated train / val / held_out coding benchmarks
-    kod_train = load_kodcode_tasks(split="train", max_tasks=100, seed=seed)
-    mbpp_all = load_mbpp_tasks(train_limit=80, val_limit=24, held_out_limit=24, seed=seed)
+    kod_train = [t for t in load_kodcode_tasks(train_limit=100, val_limit=0, seed=seed) if t.split == "train"]
+    mbpp_all = load_mbpp_tasks(train_limit=80, val_limit=24, held_out_limit=24)
     mbpp_train = [t for t in mbpp_all if t.split == "train"]
     mbpp_val = [t for t in mbpp_all if t.split == "val"]
     mbpp_ho = [t for t in mbpp_all if t.split == "held_out"]
-    he_ho = load_humaneval_plus_tasks(max_tasks=40, seed=seed)
+    he_ho = load_humanevalplus_tasks(limit=40, seed=seed)
 
     for t in kod_train + mbpp_train + mbpp_val + mbpp_ho + he_ho:
         t.system_prompt = AGENTIC_CODE_SYSTEM_PROMPT
@@ -143,7 +143,7 @@ def run_phase5(
         f"val={len(val_tasks)}, held_out={len(ho_tasks)} (HumanEval+={len(he_ho)}, MBPP={len(mbpp_ho)})"
     )
 
-    policy = GatePolicy(min_held_out_gain=0.005, max_regression_drop=0.05, regression_floor=0.80)
+    policy = GatePolicy(min_held_out_gain=0.005, max_regression_drop=0.05, min_regression_floor=0.80)
     history: list[GenerationMetrics] = []
     detailed_metrics: list[dict[str, Any]] = []
 

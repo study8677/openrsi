@@ -36,9 +36,9 @@ from model_rsi.tasks.agentic_debug import (
     run_two_turn_agentic_eval,
     summarize_agentic_episodes,
 )
-from model_rsi.tasks.code_exec import load_humaneval_plus_tasks, load_mbpp_tasks
+from model_rsi.tasks.code_exec import load_humanevalplus_tasks, load_mbpp_tasks
 from model_rsi.tasks.compactbench_rlvr import verify_compactbench_batch
-from model_rsi.tasks.math_rlvr import load_math500_tasks, verify_math_rlvr
+from model_rsi.tasks.math_rlvr import load_math500_held_out, verify_math_rlvr
 from model_rsi.tasks.regression import get_regression_suite, verify_regression
 from model_rsi.trainers.lineage_merge import merge_task_arithmetic
 
@@ -205,10 +205,10 @@ def run_phase6(
     rep_dir.mkdir(parents=True, exist_ok=True)
 
     # Load all 4 locked held-out suites
-    math_tasks = load_math500_tasks(max_tasks=40, seed=seed)
-    he_tasks = load_humaneval_plus_tasks(max_tasks=40, seed=seed)
+    math_tasks = load_math500_held_out(limit=40, max_level=4, seed=seed)
+    he_tasks = load_humanevalplus_tasks(limit=40, seed=seed)
     mbpp_ho = [
-        t for t in load_mbpp_tasks(train_limit=10, val_limit=10, held_out_limit=24, seed=seed)
+        t for t in load_mbpp_tasks(train_limit=10, val_limit=10, held_out_limit=24)
         if t.split == "held_out"
     ]
     code_tasks = he_tasks + mbpp_ho
