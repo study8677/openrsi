@@ -76,7 +76,39 @@
     "mean_artifact_tokens": 1792.3,
     "budget_violations": 0,
     "elapsed_sec": 953.2,
-    "label": "Flywheel 2B + Harness v2\n(Full Dual-Loop)",
+    "label": "Flywheel Gen3 + Harness v2\n(Reader-Only RSI)",
     "tag": "cell4_dual_loop"
+  },
+  {
+    "model_label": "cell3_gen4_trunc",
+    "method_spec": "built-in:truncate-last-n",
+    "suite": "starter",
+    "seed_group": "default",
+    "total_probes": 102,
+    "official_score": 0.6155,
+    "drift_resistance": 0.6487,
+    "stale_rate": 0.2667,
+    "budget_violations": 0,
+    "elapsed_sec": 97.4,
+    "label": "Flywheel Gen4 + Truncate\n(Co-Evolved 2B)",
+    "tag": "cell3_gen4_trunc"
+  },
+  {
+    "model_label": "cell4_gen4_harness",
+    "method_spec": "harness-rsi/harness/cb_compactor.py:OpenRSICompactor",
+    "suite": "starter",
+    "seed_group": "default",
+    "total_probes": 102,
+    "official_score": 0.5278,
+    "drift_resistance": 0.5081,
+    "stale_rate": 0.3333,
+    "mean_artifact_tokens": 1756.7,
+    "budget_violations": 0,
+    "compactor_valid_patch_rate": 0.9062,
+    "compactor_calls": 32,
+    "compactor_valid_patches": 29,
+    "elapsed_sec": 1618.2,
+    "label": "Flywheel Gen4 + Harness v2.4\n(Co-Evolved Dual-Loop)",
+    "tag": "cell4_gen4_harness"
   }
 ]

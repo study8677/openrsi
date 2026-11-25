@@ -134,7 +134,7 @@ def eval_cb_reader_tasks(
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=2560,
+            max_length=3584,
         ).to(model.device)
         plen = inputs["input_ids"].shape[1]
         with torch.no_grad():

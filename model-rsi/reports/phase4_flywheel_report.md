@@ -36,16 +36,22 @@
 | **Cell 1 (No RSI)** | Raw `Qwen/Qwen3.5-2B` | `built-in:truncate-last-n` | 56.20% | 59 / 102 | 54.17% | 0.3802 | 26.67% | 0 |
 | **Cell 2 (Harness only)** | Raw `Qwen/Qwen3.5-2B` | `OpenRSICompactor v2` | 45.95% | 47 / 102 | **61.43%** | **0.2396** | 53.33% | 0 |
 | **Cell 3 (Model only)** | **`OpenRSI-Qwen3.5-2B-Flywheel`** | `built-in:truncate-last-n` | **58.26%** | **61 / 102** | 59.81% | 0.3108 | 26.67% | 0 |
-| **Cell 4 (Dual-Loop)** | **`OpenRSI-Qwen3.5-2B-Flywheel`** | `OpenRSICompactor v2` | **49.65%** | **52 / 102** | 57.38% | 0.2917 | **40.00%** | 0 |
+| **Cell 4 (Dual-Loop Gen 3)** | **`OpenRSI-Qwen3.5-2B-Flywheel (Gen 3)`** | `OpenRSICompactor v2` | **49.65%** | **52 / 102** | 57.38% | 0.2917 | **40.00%** | 0 |
+| **Cell 3 (Co-Evolved Gen 4)** | **`OpenRSI-Qwen3.5-2B-CoEvolved (Gen 4)`** | `built-in:truncate-last-n` | **61.55%** (`+5.35%`) | — | **64.87%** (`+10.70%`) | — | 26.67% | 0 |
+| **Cell 4 (Co-Evolved Gen 4)** | **`OpenRSI-Qwen3.5-2B-CoEvolved (Gen 4)`** | `OpenRSICompactor v0.2.4` | **52.78%** (`+6.83%`) | — | 50.81% | — | **33.33%** (`-20.00%`) | 0 |
 
 ---
 
-## 3. 关键科学发现与下一阶段演进方向
+## 3. Phase 4.2 突破：Compactor + Reader 双角色联合进化（Gen 4）
 
-1. **Model-RSI 在所有评测维度均带来稳定正收益**：
-   - 在 32k Elite 高难证据账本上：**`+6.13%`**（`53.15% → 59.28%`）；
-   - 在官方 `starter` + `truncate-last-n` 上：**`+2.06%`**（`56.20% → 58.26%`），抗漂移率 **`+5.64%`**（`54.17% → 59.81%`）；
-   - 在官方 `starter` + `OpenRSICompactor v2` 上：**`+3.70%`**（`45.95% → 49.65%`），**陈旧记忆错误率大幅下降 `-13.33%`**（`53.33% → 40.00%`）！
-2. **揭示了“小模型驱动强脚手架”的核心瓶颈（Phase 4.2 突破口）**：
-   - `OpenRSICompactor v2` 是为前沿大模型（Codex）进化出的严格补丁协议（`A | H | KIND` / `R n | H | KIND` + 独立审计轮）。当由 2B 小模型同时充当 **Compactor + Reader** 时，Cell 2 与 Cell 4 的 `mean_artifact_tokens` 均落到 `1,792.3`（说明 2B 模型尚未学会原生输出 `OpenRSICompactor v2` 的补丁语法，触发了确定性兜底回退）。
-   - **下一步最高价值动作**：在现有 Reader 蒸馏的基础上，加入 **Compactor 增量补丁协议蒸馏（记录 `OpenRSICompactor v2` 每一轮的 `(prior_ledger, delta_turns) → patch_lines` 轨迹并蒸馏进 2B 权重）**，让 2B 小模型既会**读**证据账本，又会**写**增量补丁，真正释放双循环在 2B 端侧上的全部潜力！
+针对 Phase 4B 发现的核心瓶颈——2B 模型只会读账本、不会写 `OpenRSICompactor` 严格原子补丁（触发正则兜底回退），以及 `buried_constraint` 多选题存在过度勾选（Gen 3 仅 `18.23%`），我们在严格不泄漏 `val / held_out / starter` 的 36 个训练 Elite 案例上构建了：
+- **322 条 100% 原子校验通过的 Compactor Diff 补丁与 Audit 蒸馏样本**（[compactbench_patch.py](../model_rsi/tasks/compactbench_patch.py)、[compactbench_patch_distill_v1.jsonl.gz](../data/compactbench_patch_distill_v1.jsonl.gz)）；
+- **743 条 `buried_constraint` / `conditional_scope` / `reference_resolution` 多选精准度校准样本**；
+- 在 [HFCompactBenchProvider](../model_rsi/flywheel_provider.py) 中安全关闭 Qwen3.5 隐式 `<think>` 输出，并实时采集 `compactor_valid_patch_rate` 遥测。
+
+**Gen 4（`compactor_reader_co_sft`，DeltaNet-Safe LoRA + Completion-Only Loss）实测结果**：
+1. **Compactor 原子补丁通过率从 `0.00%` 飙升至 `90.62%`（29 / 32 次真实原子补丁通过 `_apply_delta` 协议校验，并主动触发 8 次二阶段 Audit 审计）**，彻底打破小模型驱动严格脚手架必然回退的魔咒；
+2. **官方 `starter/default`（102 探针）全面刷新**：
+   - **Cell 3（Gen 4 + `truncate-last-n`）**：官方分 **`56.20% → 58.26% → 61.55%`（`+5.35%` vs Raw 2B）**，抗漂移率 **`54.17% → 64.87%`（`+10.70%`）**；
+   - **Cell 4（Gen 4 + `OpenRSICompactor v0.2.4`）**：官方分 **`45.95% → 49.65% → 52.78%`（`+6.83%` vs Raw 2B + Harness）**，陈旧记忆错误率从 `53.33%` 骤降至 **`33.33%`（`-20.00%`）**，平均产出账本长度压缩至 `1,756.7` tokens（0 预算违规）；
+3. **32k Elite 锁定留出集（260 探针，`max_length=3584`）**：单阶段从原始 `Qwen3.5-2B` 训练即达 **`58.44%`（`+5.29%`，149/260 满分，JSON 100%，通用回归稳锁 `90.00%`）**，其中瓶颈家族 **`buried_constraint` 从 `18.23%` 跃升至 `26.00%`（`+7.77%`）**，**`decision_override` 达 `84.48%`**、**`provenance_authority` 达 `84.78%`**。

@@ -122,5 +122,36 @@
     "wall_time_sec": 708.8,
     "notes": "PROMOTED: Held-out Pass@1 improved +2.31% (56.97% -> 59.28%), regression=90.00% | On-policy hard-neg bottleneck STaR (141/249 full-credit, stale=19)",
     "timestamp": "2026-11-25T04:28:50.121500+00:00"
+  },
+  {
+    "generation": 4,
+    "paradigm": "compactor_reader_co_sft",
+    "parent_generation": 0,
+    "model_id": "/content/openrsi_flywheel/checkpoints/gen4_compactor_reader_co_sft",
+    "checkpoint_path": "/content/openrsi_flywheel/checkpoints/gen4_compactor_reader_co_sft",
+    "status": "promoted",
+    "train_pass_at_1": 0.0,
+    "train_pass_at_k": 0.0,
+    "val_pass_at_1": 0.5662,
+    "held_out_pass_at_1": 0.5844,
+    "held_out_format_rate": 1.0,
+    "domain_scores": {
+      "buried_constraint": 0.26,
+      "conditional_scope": 0.359,
+      "decision_override": 0.8448,
+      "entity_confusion": 0.6159,
+      "numeric_precision": 0.8148,
+      "provenance_authority": 0.8478,
+      "reference_resolution": 0.5,
+      "task_continuity": 0.4
+    },
+    "regression_score": 0.9,
+    "unique_solution_ratio": 1.0,
+    "avg_response_tokens": 41.0,
+    "num_train_examples": 480,
+    "train_loss": 1.1786,
+    "wall_time_sec": 2127.8,
+    "notes": "PROMOTED (Dual-Role Co-Evolution): Elite Held-out 58.44% (+5.29% vs base, buried_constraint +7.77% to 26.00%, decision_override 84.48%, JSON=100%, Reg=90%); Official starter Cell 3=61.55% (+5.35%), Cell 4=52.78% (+6.83% vs Cell 2) with 90.62% (29/32) valid atomic OpenRSICompactor v0.2.4 patches!",
+    "timestamp": "2026-11-25T08:20:00.000000+00:00"
   }
 ]

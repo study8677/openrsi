@@ -135,7 +135,7 @@ def evaluate_unified_suite(
             )
             for t in batch
         ]
-        inp = tok(prompts, return_tensors="pt", padding=True, truncation=True, max_length=2560).to(model.device)
+        inp = tok(prompts, return_tensors="pt", padding=True, truncation=True, max_length=3584).to(model.device)
         plen = inp["input_ids"].shape[1]
         with torch.no_grad():
             out = model.generate(

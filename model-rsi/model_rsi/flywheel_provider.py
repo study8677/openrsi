@@ -289,7 +289,7 @@ def plot_flywheel_ablation(
     labels = [r["label"] for r in ablation_rows]
     scores = [r["official_score"] * 100.0 for r in ablation_rows]
     drifts = [r["drift_resistance"] * 100.0 for r in ablation_rows]
-    colors = ["#94a3b8", "#3b82f6", "#10b981", "#7c3aed"]
+    colors = ["#94a3b8", "#3b82f6", "#10b981", "#7c3aed", "#059669", "#6d28d9"]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13.5, 5.2), dpi=150)
     x = list(range(len(labels)))
