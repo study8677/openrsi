@@ -331,3 +331,67 @@ def test_phase4_compactbench_flywheel_loader_and_verifier(tmp_path: Path) -> Non
     assert chart.exists() and chart.stat().st_size > 1000
 
 
+def test_phase42_compactor_patch_verifier_and_diff() -> None:
+    from model_rsi.tasks.compactbench_patch import (
+        LedgerRecord,
+        apply_compactor_delta,
+        diff_ledgers_to_patch,
+        verify_compactor_patch,
+    )
+
+    prior = [
+        LedgerRecord("H", "RULE: Deployments require security sign-off."),
+        LedgerRecord("H", "TASK: OPS-12 status pending owner Alice."),
+    ]
+    target = [
+        LedgerRecord("H", "RULE: Deployments require security sign-off."),
+        LedgerRecord("H", "TASK: OPS-12 status completed owner Alice."),
+        LedgerRecord("H", "SCOPE: Staging rollouts allowed without freeze."),
+    ]
+    patch = diff_ledgers_to_patch(prior, target)
+    assert "R 2 | H | TASK: OPS-12 status completed owner Alice." in patch
+    assert "A | H | SCOPE: Staging rollouts allowed without freeze." in patch
+
+    applied = apply_compactor_delta(prior, patch, audit=False)
+    assert applied is not None and len(applied) == 3
+
+    task = VerifiableTask(
+        task_id="patch_test_1",
+        domain="compactbench_patch",
+        split="val",
+        difficulty=3,
+        prompt="Patch test",
+        verifier_spec={
+            "prior_rows": [r.render() for r in prior],
+            "audit": False,
+            "limit": 1884,
+            "required_keywords": ["OPS-12", "completed", "Staging"],
+        },
+    )
+    v_ok = verify_compactor_patch(task, patch)
+    assert v_ok.passed and v_ok.reward >= 0.99
+
+    # Atomic rejection when prose leaks into patch
+    v_bad = verify_compactor_patch(task, "Here is the patch:\n" + patch)
+    assert not v_bad.passed and v_bad.reward == 0.0
+
+    # Audit mode rejects non-audit kind TASK
+    audit_task = VerifiableTask(
+        task_id="patch_audit_1",
+        domain="compactbench_patch",
+        split="val",
+        difficulty=3,
+        prompt="Audit test",
+        verifier_spec={
+            "prior_rows": [r.render() for r in prior],
+            "audit": True,
+            "limit": 1884,
+        },
+    )
+    assert verify_compactor_patch(audit_task, "NO CHANGE").passed
+    assert not verify_compactor_patch(
+        audit_task, "R 2 | H | TASK: OPS-12 status done."
+    ).passed
+
+
+

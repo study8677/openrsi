@@ -16,7 +16,16 @@ from pydantic import BaseModel, Field
 
 
 SplitName = Literal["train", "val", "held_out", "regression"]
-TaskDomain = Literal["countdown", "code_exec", "math_rlvr", "compactbench_flywheel", "regression", "harness_distill"]
+TaskDomain = Literal[
+    "countdown",
+    "code_exec",
+    "math_rlvr",
+    "compactbench_flywheel",
+    "compactbench_patch",
+    "agentic_debug",
+    "regression",
+    "harness_distill",
+]
 TrajectorySource = Literal["model_rollout", "harness_rsi", "anchor_replay"]
 
 

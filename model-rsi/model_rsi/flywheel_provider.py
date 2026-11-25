@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any, ClassVar
@@ -23,10 +24,38 @@ from compactbench.providers import CompletionRequest, CompletionResponse, Provid
 from compactbench.runner import CaseCompleteEvent, RunArgs, RunEndEvent, iter_events, run_experiment
 
 _ENC = tiktoken.get_encoding("cl100k_base")
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+_CODE_FENCE_RE = re.compile(r"^```[a-zA-Z0-9_-]*\s*\n(.*?)\n```\s*$", re.DOTALL)
 
 
 def _count_tokens(text: str) -> int:
     return len(_ENC.encode_ordinary(text))
+
+
+def _apply_chat_template_safe(tokenizer: Any, messages: list[dict[str, str]]) -> str:
+    """Disable Qwen3.5 implicit `<think>` mode cleanly when supported by the tokenizer."""
+    try:
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
+    except TypeError:
+        return tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+
+def _clean_generation_text(text: str, *, is_compactor_prompt: bool = False) -> str:
+    cleaned = _THINK_BLOCK_RE.sub("", text).strip()
+    if is_compactor_prompt:
+        m = _CODE_FENCE_RE.match(cleaned)
+        if m:
+            cleaned = m.group(1).strip()
+    return cleaned
 
 
 class HFCompactBenchProvider(Provider):
@@ -46,6 +75,12 @@ class HFCompactBenchProvider(Provider):
         self._tokenizer = tokenizer
         self._model_name = model_name
         self._default_max_new_tokens = default_max_new_tokens
+        self.stats: dict[str, int] = {
+            "total_calls": 0,
+            "compactor_calls": 0,
+            "compactor_valid_patches": 0,
+            "reader_calls": 0,
+        }
 
     @property
     def endpoint_kind(self) -> str:
@@ -54,6 +89,8 @@ class HFCompactBenchProvider(Provider):
     def _complete_sync(self, request: CompletionRequest) -> CompletionResponse:
         import torch
 
+        from model_rsi.tasks.compactbench_patch import _PATCH_RE
+
         messages: list[dict[str, str]] = []
         if request.system:
             messages.append({"role": "system", "content": request.system.strip()})
@@ -61,11 +98,15 @@ class HFCompactBenchProvider(Provider):
         if request.cached_prefix:
             user_parts.append(request.cached_prefix.strip())
         user_parts.append(request.prompt.strip())
-        messages.append({"role": "user", "content": "\n\n".join(user_parts)})
+        user_text = "\n\n".join(user_parts)
+        messages.append({"role": "user", "content": user_text})
 
-        prompt_str = self._tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
+        is_compactor = (
+            "Emit only complete patch lines:" in user_text
+            or "Emit only NO CHANGE or patch lines:" in user_text
         )
+
+        prompt_str = _apply_chat_template_safe(self._tokenizer, messages)
         inputs = self._tokenizer(
             prompt_str,
             return_tensors="pt",
@@ -94,9 +135,21 @@ class HFCompactBenchProvider(Provider):
         with torch.no_grad():
             outputs = self._model.generate(**inputs, **gen_kwargs)
 
-        text = self._tokenizer.decode(
+        raw_text = self._tokenizer.decode(
             outputs[0][prompt_len:], skip_special_tokens=True
         ).strip()
+        text = _clean_generation_text(raw_text, is_compactor_prompt=is_compactor)
+
+        self.stats["total_calls"] += 1
+        if is_compactor:
+            self.stats["compactor_calls"] += 1
+            non_empty = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            if text == "NO CHANGE" or (
+                non_empty and all(_PATCH_RE.fullmatch(ln) is not None for ln in non_empty)
+            ):
+                self.stats["compactor_valid_patches"] += 1
+        else:
+            self.stats["reader_calls"] += 1
 
         return CompletionResponse(
             text=text,
@@ -192,7 +245,7 @@ def run_official_compactbench_eval(
     mean_probe_score = round(sum_score / max(1, total_probes), 4)
     fam_avg = {k: round(sum(v) / len(v), 4) for k, v in sorted(by_family.items())}
 
-    return {
+    res = {
         "model_label": model_label,
         "method_spec": method_spec,
         "suite": suite,
@@ -211,6 +264,14 @@ def run_official_compactbench_eval(
         "by_family": fam_avg,
         "elapsed_sec": round(time.monotonic() - t0, 1),
     }
+    if hasattr(provider, "stats"):
+        st = dict(provider.stats)
+        cc = st.get("compactor_calls", 0)
+        st["compactor_valid_patch_rate"] = (
+            round(st.get("compactor_valid_patches", 0) / cc, 4) if cc > 0 else 0.0
+        )
+        res["provider_stats"] = st
+    return res
 
 
 def plot_flywheel_ablation(
