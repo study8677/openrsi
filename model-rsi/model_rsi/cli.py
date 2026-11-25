@@ -103,5 +103,83 @@ def plot(
     console.print(f"[green]Saved evolution curve -> {out_path}[/green]")
 
 
+@app.command("export-patch-dataset")
+def export_patch_dataset(
+    traces_path: Path = typer.Option(
+        Path("../harness-rsi/reports/cb_practice48_openrsi_v1.traces.jsonl"),
+        help="Read-only Harness-RSI CompactBench traces JSONL",
+    ),
+    out_path: Path = typer.Option(
+        Path("data/compactbench_patch_distill_v1.jsonl.gz"),
+        help="Output gzipped Compactor patch distillation dataset",
+    ),
+    train_cases: int = typer.Option(36, help="Strictly isolated train case count"),
+    seed: int = typer.Option(42, help="Deterministic case_id split seed"),
+) -> None:
+    """Build & verify strictly train-isolated OpenRSICompactor patch distillation examples."""
+    from model_rsi.tasks.compactbench_patch import (
+        build_compactor_patch_distill_examples,
+        save_patch_distill_gz,
+    )
+
+    examples = build_compactor_patch_distill_examples(
+        traces_path, train_cases=train_cases, seed=seed
+    )
+    saved = save_patch_distill_gz(examples, out_path)
+    n_audit = sum(1 for e in examples if e.get("audit"))
+    console.print(
+        f"[green]Exported {len(examples)} atomically verified patch examples "
+        f"(main={len(examples) - n_audit}, audit={n_audit}) -> {saved}[/green]"
+    )
+
+
+@app.command("audit-splits")
+def audit_splits(
+    flywheel_gz: Path = typer.Option(
+        Path("data/compactbench_flywheel_v1.jsonl.gz"),
+        help="Gzipped Phase 4 Flywheel tasks",
+    ),
+    patch_gz: Path = typer.Option(
+        Path("data/compactbench_patch_distill_v1.jsonl.gz"),
+        help="Gzipped Phase 4.2 Compactor patch dataset",
+    ),
+) -> None:
+    """Verify zero case_id leakage across train / val / held_out / official starter."""
+    import gzip
+    import json
+
+    from compactbench.scenarios.generate import expand_suite, get_suite
+    from model_rsi.protocol import VerifiableTask
+    from model_rsi.tasks.compactbench_patch import load_patch_distill_gz
+
+    tasks = [
+        VerifiableTask.model_validate(json.loads(line))
+        for line in gzip.open(flywheel_gz, "rt", encoding="utf-8")
+        if line.strip()
+    ]
+    by_split: dict[str, set[str]] = {}
+    for t in tasks:
+        by_split.setdefault(t.split, set()).add(str(t.metadata.get("case_id", "")))
+
+    starter_ids = {
+        c.case_id
+        for c in expand_suite(get_suite("starter"), seed_group="default", cases_per_family=1)
+    }
+    patch_ids = {str(e.get("case_id", "")) for e in load_patch_distill_gz(patch_gz)}
+
+    assert by_split["train"].isdisjoint(by_split["val"]), "train/val overlap!"
+    assert by_split["train"].isdisjoint(by_split["held_out"]), "train/held_out overlap!"
+    assert by_split["val"].isdisjoint(by_split["held_out"]), "val/held_out overlap!"
+    assert patch_ids.issubset(by_split["train"]), "patch dataset leaked outside train!"
+    assert patch_ids.isdisjoint(starter_ids), "patch dataset overlaps starter!"
+
+    console.print(
+        f"[bold green]SPLIT AUDIT PASSED (0 leaks):[/bold green] "
+        f"train={len(by_split['train'])}, val={len(by_split['val'])}, "
+        f"held_out={len(by_split['held_out'])}, patch_train={len(patch_ids)}, "
+        f"starter={len(starter_ids)}"
+    )
+
+
 if __name__ == "__main__":
     app()

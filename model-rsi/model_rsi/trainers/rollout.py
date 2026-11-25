@@ -11,18 +11,29 @@ from model_rsi.protocol import Trajectory, VerifiableTask
 from model_rsi.tasks import verify_response
 
 
-def format_chat_prompt(tokenizer: Any, task: VerifiableTask) -> str:
+def format_chat_prompt(tokenizer: Any, task: VerifiableTask, *, disable_thinking: bool = True) -> str:
     messages = []
     if task.system_prompt:
         messages.append({"role": "system", "content": task.system_prompt})
     messages.append({"role": "user", "content": task.prompt})
+    if disable_thinking:
+        try:
+            return tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+            )
+        except TypeError:
+            pass
     return tokenizer.apply_chat_template(
         messages, tokenize=False, add_generation_prompt=True
     )
 
 
-def load_model_and_tokenizer(model_path: str, *, bf16: bool = True) -> tuple[Any, Any]:
-    """Load an open-weight HF model (or merged checkpoint) on GPU with left-padding."""
+def load_model_and_tokenizer(model_path: str, *, bf16: bool | None = None) -> tuple[Any, Any]:
+    """Load an open-weight HF model (or merged checkpoint) on GPU with left-padding.
+
+    Auto-detects native bf16 (L4/A100) vs fp16 (T4) and pins single-GPU loads to
+    `cuda:0` to prevent accidental `accelerate` CPU offload deadlocks.
+    """
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -31,11 +42,18 @@ def load_model_and_tokenizer(model_path: str, *, bf16: bool = True) -> tuple[Any
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
-    dtype = torch.bfloat16 if (bf16 and torch.cuda.is_available()) else torch.float32
+    if torch.cuda.is_available():
+        use_bf16 = torch.cuda.is_bf16_supported() if bf16 is None else (bf16 and torch.cuda.is_bf16_supported())
+        dtype = torch.bfloat16 if use_bf16 else torch.float16
+        dev_map: Any = {"": 0} if torch.cuda.device_count() == 1 else "auto"
+    else:
+        dtype = torch.float32
+        dev_map = "auto"
+
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         dtype=dtype,
-        device_map="auto",
+        device_map=dev_map,
         trust_remote_code=True,
     )
     model.eval()

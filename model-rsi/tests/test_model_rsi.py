@@ -467,5 +467,43 @@ def test_phase5_agentic_debug_loop_and_builders() -> None:
     assert dpo[0]["rejected"] == bad_code
 
 
+def test_phase6_unified_chart_and_dataset_isolation(tmp_path: Path) -> None:
+    import gzip
+
+    from model_rsi.reporting import plot_unified_multidomain_chart
+    from model_rsi.tasks.compactbench_patch import load_patch_distill_gz
+
+    chart = plot_unified_multidomain_chart(
+        ["MATH-500", "Code T1", "Code 2-Turn", "CompactBench", "Regression"],
+        {
+            "Raw Qwen3.5-2B": [0.30, 0.55, 0.62, 0.53, 0.90],
+            "OpenRSI-Unified": [0.40, 0.62, 0.74, 0.63, 0.90],
+        },
+        tmp_path / "unified.png",
+    )
+    assert chart.exists() and chart.stat().st_size > 1000
+
+    # Verify exported gzipped datasets maintain strict train/val/held_out isolation
+    data_dir = Path(__file__).resolve().parents[1] / "data"
+    fw_gz = data_dir / "compactbench_flywheel_v1.jsonl.gz"
+    patch_gz = data_dir / "compactbench_patch_distill_v1.jsonl.gz"
+    if fw_gz.exists() and patch_gz.exists():
+        tasks = [
+            VerifiableTask.model_validate(json.loads(line))
+            for line in gzip.open(fw_gz, "rt", encoding="utf-8")
+            if line.strip()
+        ]
+        train_cids = {t.metadata["case_id"] for t in tasks if t.split == "train"}
+        val_cids = {t.metadata["case_id"] for t in tasks if t.split == "val"}
+        ho_cids = {t.metadata["case_id"] for t in tasks if t.split == "held_out"}
+        patch_ex = load_patch_distill_gz(patch_gz)
+        patch_cids = {e["case_id"] for e in patch_ex}
+        assert len(patch_ex) >= 300
+        assert patch_cids.issubset(train_cids)
+        assert patch_cids.isdisjoint(val_cids)
+        assert patch_cids.isdisjoint(ho_cids)
+
+
+
 
 

@@ -55,9 +55,14 @@ def train_grpo_rlvr(
         if t.system_prompt:
             msgs.append({"role": "system", "content": t.system_prompt})
         msgs.append({"role": "user", "content": t.prompt})
-        prompt_str = tokenizer.apply_chat_template(
-            msgs, tokenize=False, add_generation_prompt=True
-        )
+        try:
+            prompt_str = tokenizer.apply_chat_template(
+                msgs, tokenize=False, add_generation_prompt=True, enable_thinking=False
+            )
+        except TypeError:
+            prompt_str = tokenizer.apply_chat_template(
+                msgs, tokenize=False, add_generation_prompt=True
+            )
         rows.append({"prompt": prompt_str, "task_id": t.task_id})
     ds = Dataset.from_list(rows)
 
@@ -73,10 +78,15 @@ def train_grpo_rlvr(
                 rewards.append(float(ver.reward))
         return rewards
 
+    has_cuda = torch.cuda.is_available()
+    use_bf16 = has_cuda and torch.cuda.is_bf16_supported()
+    use_fp16 = has_cuda and not use_bf16
+    dev_map: Any = {"": 0} if (has_cuda and torch.cuda.device_count() == 1) else "auto"
+
     model = AutoModelForCausalLM.from_pretrained(
         base_model_path,
-        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto",
+        dtype=torch.bfloat16 if use_bf16 else (torch.float16 if use_fp16 else torch.float32),
+        device_map=dev_map,
         trust_remote_code=True,
     )
 
@@ -102,7 +112,8 @@ def train_grpo_rlvr(
         max_completion_length=max_completion_length,
         lr_scheduler_type="cosine",
         warmup_steps=max(2, max_steps // 10),
-        bf16=torch.cuda.is_available(),
+        bf16=use_bf16,
+        fp16=use_fp16,
         gradient_checkpointing=True,
         logging_steps=5,
         save_strategy="no",

@@ -45,18 +45,28 @@ def train_star_sft(
     completions: list[str] = []
     for ex in examples:
         msgs = ex["messages"]
-        prompt_str = tokenizer.apply_chat_template(
-            msgs[:-1], tokenize=False, add_generation_prompt=True
-        )
+        try:
+            prompt_str = tokenizer.apply_chat_template(
+                msgs[:-1], tokenize=False, add_generation_prompt=True, enable_thinking=False
+            )
+        except TypeError:
+            prompt_str = tokenizer.apply_chat_template(
+                msgs[:-1], tokenize=False, add_generation_prompt=True
+            )
         comp_str = msgs[-1]["content"] + (tokenizer.eos_token or "")
         prompts.append(prompt_str)
         completions.append(comp_str)
     ds = Dataset.from_dict({"prompt": prompts, "completion": completions})
 
+    has_cuda = torch.cuda.is_available()
+    use_bf16 = has_cuda and torch.cuda.is_bf16_supported()
+    use_fp16 = has_cuda and not use_bf16
+    dev_map: Any = {"": 0} if (has_cuda and torch.cuda.device_count() == 1) else "auto"
+
     model = AutoModelForCausalLM.from_pretrained(
         base_model_path,
-        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto",
+        dtype=torch.bfloat16 if use_bf16 else (torch.float16 if use_fp16 else torch.float32),
+        device_map=dev_map,
         trust_remote_code=True,
     )
 
@@ -78,7 +88,8 @@ def train_star_sft(
         learning_rate=learning_rate,
         lr_scheduler_type="cosine",
         warmup_steps=max(2, len(examples) // 20),
-        bf16=torch.cuda.is_available(),
+        bf16=use_bf16,
+        fp16=use_fp16,
         gradient_checkpointing=True,
         logging_steps=5,
         save_strategy="no",
