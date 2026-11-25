@@ -273,3 +273,61 @@ def test_math_rlvr_and_kodcode_verifiers() -> None:
     vc_bad = verify_code_exec(kc_task, "```python\ndef add(a, b):\n    return a - b\n```")
     assert not vc_bad.passed
 
+
+def test_phase4_compactbench_flywheel_loader_and_verifier(tmp_path: Path) -> None:
+    from model_rsi.flywheel_provider import plot_flywheel_ablation
+    from model_rsi.tasks.compactbench_rlvr import (
+        build_harness_distill_sft_examples,
+        load_compactbench_flywheel_tasks,
+        verify_compactbench_batch,
+    )
+
+    traces_file = Path(__file__).resolve().parents[2] / "harness-rsi" / "reports" / "cb_practice48_openrsi_v1.traces.jsonl"
+    if not traces_file.exists():
+        return
+
+    tasks = load_compactbench_flywheel_tasks(
+        traces_file, train_cases=36, val_cases=6, held_out_cases=6, seed=42
+    )
+    assert len(tasks) > 200
+
+    # Strict case_id split isolation: zero overlap across train / val / held_out
+    by_split: dict[str, set[str]] = {}
+    for t in tasks:
+        by_split.setdefault(t.split, set()).add(t.metadata["case_id"])
+    assert len(by_split["train"]) == 36
+    assert len(by_split["val"]) == 6
+    assert len(by_split["held_out"]) == 6
+    assert by_split["train"].isdisjoint(by_split["val"])
+    assert by_split["train"].isdisjoint(by_split["held_out"])
+    assert by_split["val"].isdisjoint(by_split["held_out"])
+
+    # Official score_probe verifier on gold response must achieve 1.0
+    sample = tasks[0]
+    ver_gold = verify_compactbench_batch(sample, sample.metadata["gold_response"])
+    assert ver_gold.reward == 1.0
+    assert ver_gold.passed
+
+    ver_bad = verify_compactbench_batch(sample, "not json at all")
+    assert ver_bad.reward == 0.0
+    assert not ver_bad.passed
+
+    # Harness-to-Model distillation SFT builder
+    distill = build_harness_distill_sft_examples(
+        [t for t in tasks if t.split == "train"], min_teacher_score=0.85
+    )
+    assert len(distill) >= 80
+
+    # Ablation chart rendering
+    chart = plot_flywheel_ablation(
+        [
+            {"label": "Raw 2B + Trunc", "official_score": 0.40, "drift_resistance": 0.35},
+            {"label": "Raw 2B + Harness", "official_score": 0.65, "drift_resistance": 0.70},
+            {"label": "Flywheel 2B + Trunc", "official_score": 0.55, "drift_resistance": 0.50},
+            {"label": "Dual-Loop Flywheel", "official_score": 0.80, "drift_resistance": 0.85},
+        ],
+        tmp_path / "ablation.png",
+    )
+    assert chart.exists() and chart.stat().st_size > 1000
+
+
