@@ -88,7 +88,10 @@ Using **zero extra API cost** (powered locally by `codex exec` via ChatGPT OAuth
 2. **CompactBench Official Full `practice` Suite (Elite Difficulty — 48/48 cases, ~32k tokens, 8 adversarial families mixed, 4 drift cycles, 4,546 probes)**:
    - `OpenRSICompactor` v1 (`0.2.2`, Delta Ledger): `0.762 [95% CI: 0.740, 0.784]` (`3,535/4,546` full-credit)
    - `OpenRSICompactor` v2 (`0.2.4`, 2-Pass Audit): `0.767 [95% CI: 0.750, 0.785]` (`3,458/4,546` full-credit)
-   - **`OpenRSICompactor` v2.5 (`0.2.5`, Protected Packer)**: **`0.806 [95% CI: 0.784, 0.829]`** (`3,624/4,546` full-credit, **+4.4 pts over v1 with non-overlapping 95% CI**, Cycle 0→4: `0.90 → 0.72`, drift resistance `0.803`, `0.0%` hallucination, `0` budget violations) — see full 48-case breakdown & charts in [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md).
+   - **`OpenRSICompactor` v2.5 (`0.2.5`, Protected Packer)**: **`0.806 [95% CI: 0.784, 0.829]`** (`3,624/4,546` full-credit, **+4.4 pts over v1 with non-overlapping 95% CI**, Cycle 0→4: `0.90 → 0.72`, drift resistance `0.803`, `0.0%` hallucination, `0` budget violations).
+3. **Extreme `1,024`-Token Stress Test (~50× Compression, `practice / stress_1024`, 387 probes, 4 drift cycles)**:
+   - `built-in:codex-cli` (Codex CLI default): `0.406 [95% CI: 0.357, 0.465]` (`149/387` full-credit, collapses at Cycle 1: `0.78 → 0.36 → 0.33`, stale `11.4%`)
+   - **`OpenRSICompactor` v2.5 (`0.2.5`)**: **`0.577 [95% CI: 0.484, 0.646]`** (**+17.1 pts / +42% relative with non-overlapping 95% CIs**, `221/387` full-credit, drift resistance `0.640` vs `0.375`, stale `3.8%`, `0` budget violations) — see full tables & charts in [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md).
 
 ---
 

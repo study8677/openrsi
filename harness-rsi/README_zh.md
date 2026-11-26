@@ -77,10 +77,14 @@ uv run openrsi generate-arena
 uv run openrsi eval --split all
 uv run openrsi evolve --generations 3
 
-# 3. 在 CompactBench 多轮漂移难题集上评测与进化（支持 32k tokens Elite 难度）
-uv run openrsi cb-eval --suite practice --seed-group practice_eval --cases-per-family 2
-uv run openrsi cb-eval --method built-in:codex-cli --suite practice --seed-group practice_eval --cases-per-family 2
-uv run openrsi cb-evolve --suite practice --cases-per-family 1 --generations 2
+# 3. 在 CompactBench 多轮漂移难题集上评测、结构化归因与定向进化（32k tokens Elite 难度）
+uv run openrsi cb-eval --suite practice --seed-group default --budget-tokens 2048 --concurrency 2 --output reports/run.jsonl --resume --traces reports/run.traces.jsonl
+uv run openrsi cb-analyze reports/run.jsonl --traces reports/run.traces.jsonl --save-json reports/run.diagnostics.json
+uv run openrsi cb-evolve --suite practice --seed-group openrsi_dev --cases-per-family 6 --generations 2 --baseline-xray reports/run.summary.json --diagnostics reports/run.diagnostics.json
+
+# 4. 将进化后的增量证据账本作为实时长会话压缩中间件使用
+# from harness.middleware import SessionCompactionMiddleware
+uv run pytest tests/test_middleware.py -v
 ```
 
 ---
@@ -88,6 +92,6 @@ uv run openrsi cb-evolve --suite practice --cases-per-family 1 --generations 2
 ## 路线图（Roadmap）
 
 - [x] **H1 — 最小自修改闭环**：`openrsi` 命令行驱动器，完成沙盒/确定性验分与自动保留/回滚门控。
-- [x] **H2 — 轨迹归因与 CompactBench 接入**：按家族与轮次输出漂移诊断，在 Elite `practice` 上反超 `built-in:codex-cli`（`0.707` vs `0.697`，抗漂移 `0.783` vs `0.557`）。
-- [ ] **H3 — 进化档案库与实时中间件**：MAP-Elites 多分支进化树，并将进化后的压缩器挂入 `codex app-server` 实时长会话。
+- [x] **H2 — 结构化 Trace 归因与 CompactBench 48 题突破**：建成 `openrsi cb-analyze` 根因分析（首轮漏提 vs 后期驱逐 vs 混淆），全量 48 题 Elite `practice`（4,546 探针）从 `0.762 → 0.806 [0.784, 0.829]`（0 违规），在 `1,024` tokens 极限压测（~50× 压缩）下以 **`0.577` vs `0.406`（+17.1%）** 大幅领先 `built-in:codex-cli`。
+- [x] **H3 — 可插拔长会话压缩中间件**：已封装 `SessionCompactionMiddleware`（`harness/middleware.py`），可直接接入实时长对话 Agent 工作流。
 - [ ] **H4 — 向 Model-RSI 导出高质量轨迹**：将验证通过的优质运行轨迹自动导出为标准数据集，供 [`model-rsi`](../model-rsi/README_zh.md) 使用。

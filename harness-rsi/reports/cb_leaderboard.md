@@ -73,3 +73,16 @@ Guided by the 48-case v2 trace analysis (which proved `decision_override` and `p
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | `built-in:codex-cli` (Codex CLI default) | 0.697 | 131 / 191 | 0.557 | +0.403 | 0.55 | 0 |
 | `OpenRSICompactor` v1 (RSI Delta Evidence Ledger) | **0.707** | **140 / 191** | **0.783** | **+0.191** | **0.67** | **0** |
+
+---
+
+## Extreme-Budget Stress Test: `1,024` Tokens (~50× Compression, `practice / stress_1024`, 4 cases = 387 probes, 4 drift cycles)
+
+![1024-Token Extreme Budget Stress Test vs Codex CLI](./cb_stress1024_vs_codex.png)
+
+| Method | Official Score (95% CI) | Full-Credit Probes | Drift Resistance | Cycle 0 → Cycle 4 | Stale Rate | Budget Violations |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `built-in:codex-cli` (Codex CLI default) | `0.406 [0.357, 0.465]` | 149 / 387 | 0.375 | `0.78 → 0.36 → 0.31 → 0.32 → 0.33` | 11.4% | 0 |
+| **`OpenRSICompactor` v2.5 (`0.2.5`)** | **`0.577 [0.484, 0.646]`** | **`221 / 387` (+72!)** | **`0.640` (+0.265)** | **`0.76 → 0.64 → 0.57 → 0.52 → 0.49`** | **`3.8%` (3× lower)** | **`0`** |
+
+> **+17.1 percentage points (+42% relative, non-overlapping 95% CIs)** over `built-in:codex-cli` at 1,024 tokens: `entity_confusion` **+41 pts** (`0.58` vs `0.17`), `decision_override` **+32 pts** (`0.73` vs `0.41`), `numeric_precision` **+29 pts** (`0.66` vs `0.37`), `task_continuity` **+24 pts** (`0.35` vs `0.11`), `conditional_scope` **+17 pts** (`0.54` vs `0.37`). Full summaries: [`cb_stress1024_openrsi_v2_5.summary.json`](./cb_stress1024_openrsi_v2_5.summary.json) | [`cb_stress1024_codex_cli.summary.json`](./cb_stress1024_codex_cli.summary.json).
