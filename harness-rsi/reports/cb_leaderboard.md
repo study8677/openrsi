@@ -6,23 +6,24 @@ Evaluated with `compactbench==0.3.0` via local `CodexExecProvider` (`codex exec 
 
 | Method | Cases | Full-Credit Probes | Official Score (95% CI) | Drift Resistance | Decay (C0 - C4) | Stale / Trap / Halluc | Mean Tokens / Violations |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`OpenRSICompactor` v1 (RSI Delta Evidence Ledger)** | **48 / 48** | **3,535 / 4,546** | **`0.762 [0.740, 0.784]`** | **`0.815`** | **`+0.164`** (`0.90 → 0.69`) | `3.3% / 0.0% / 0.0%` | `1,874 / 0` |
+| `OpenRSICompactor` v1 (RSI Delta Evidence Ledger) | 48 / 48 | 3,535 / 4,546 | `0.762 [0.740, 0.784]` | **0.815** | **+0.164** (`0.90 → 0.69`) | `3.3% / 0.0% / 0.0%` | `1,874 / 0` |
+| **`OpenRSICompactor` v2 (2-Pass Audit Ledger)** | **48 / 48** | 3,458 / 4,546 | **`0.767 [0.750, 0.785]`** | 0.777 | `+0.187` (`0.87 → 0.65`) | `4.3% / 0.0% / 0.0%` | `1,880 / 0` |
 
-### 48-Case Diagnostic Breakdown (Sorted Weak → Strong — Roadmap for Next Evolution)
+### 48-Case v1 vs v2 Per-Family Breakdown & Trace Root-Cause X-Ray (Basis for v3 Crossover Evolution)
 
-| Family | 48-Case Score | Status / Evolution Priority |
-| :--- | :---: | :--- |
-| `reference_resolution` | **0.48** | **P0 Bottleneck** — ordinal/superlative/recommender shortlists lost under 32k compaction |
-| `buried_constraint` | **0.65** | **P1 Bottleneck** — rules buried among look-alike sibling projects |
-| `conditional_scope` | **0.66** | **P1 Bottleneck** — scoped/time-bounded rule widening & narrowing |
-| `numeric_precision` | **0.72** | P2 — exact figures/dates/limits shadowed by look-alike projects |
-| `task_continuity` | **0.72** | P2 — ticket board state transitions (`in_review` vs `done`) |
-| `entity_confusion` | **0.92** | Strong (protect against regression) |
-| `decision_override` | **0.95** | Strong (protect against regression) |
-| `provenance_authority` | **0.98** | Near-perfect (protect against regression) |
+| Family | v1 (48 cases) | v2 (48 cases) | Delta | v2 Root-Cause Diagnosis (`openrsi cb-analyze`) |
+| :--- | :---: | :---: | :---: | :--- |
+| `reference_resolution` | 0.480 | **0.629** | **+0.149** | Improved sharply; remaining 143 false abstentions from missing/evicted shortlists |
+| `buried_constraint` | 0.650 | **0.757** | **+0.107** | Birth loss cut `142 → 36`; remaining 157 failures are drift-eviction |
+| `task_continuity` | 0.720 | **0.889** | **+0.169** | Huge win (only 6 birth losses across 48 cases!) |
+| `numeric_precision` | 0.720 | **0.751** | **+0.031** | Improved; 84 false abstentions under budget saturation |
+| `conditional_scope` | 0.660 | 0.660 | `0.000` | 218 wrong answers vs 15 abstain (imprecise scope/exception boundaries on cycle 0) |
+| `entity_confusion` | **0.920** | 0.905 | -0.015 | Strong |
+| `decision_override` | **0.950** | 0.717 | **-0.233** | **190 false abstentions vs 10 wrong** — `DECISION` rows evicted by 100% budget saturation! |
+| `provenance_authority` | **0.980** | 0.831 | **-0.149** | **66 false abstentions vs 0 wrong** — `SOURCE` rows evicted by 100% budget saturation! |
 
-- **By Probe Category (weak → strong)**: `reference_resolution: 0.54` | `constraint_application: 0.60` | `fact_recall: 0.61` | `task_state: 0.70` | `constraint_recall: 0.72` | `entity_attribution: 0.91` | `decision_state: 0.96` | `abstention: 1.00`.
-- **Full JSON summary**: [`cb_practice48_openrsi_v1.summary.json`](./cb_practice48_openrsi_v1.summary.json)
+- **Key v3 Insight**: `240/240 (100%)` cycles hit budget saturation (`56.8` rows/ledger). Simply combining **v1's `DECISION`/`SOURCE` retention (`0.95`/`0.98`)** + **v2's `reference`/`buried`/`task` gains** + **denser telegraph record formatting** gives an immediate `0.83+` crossover target!
+- **Full JSON summaries & diagnostics**: [`cb_practice48_openrsi_v1.summary.json`](./cb_practice48_openrsi_v1.summary.json) | [`cb_practice48_openrsi_v2.summary.json`](./cb_practice48_openrsi_v2.summary.json) | [`cb_practice48_openrsi_v2.diagnostics.json`](./cb_practice48_openrsi_v2.diagnostics.json)
 
 ---
 

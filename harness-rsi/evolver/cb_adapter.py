@@ -376,6 +376,7 @@ def run_compactbench_evolution(
     compactor_path: Path = DEFAULT_CB_COMPACTOR_PATH,
     baseline_xray_path: Path | None = None,
     diagnostics_path: Path | None = None,
+    crossover_note: str | None = None,
 ) -> list[dict[str, Any]]:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     console = Console()
@@ -403,6 +404,8 @@ def run_compactbench_evolution(
                 + "\n".join(f"- {f}" for f in findings)
                 + "\n"
             )
+    if crossover_note:
+        xray_block += f"\n## Crossover / Architectural Guidance\n{crossover_note.strip()}\n"
 
     method_spec = f"{compactor_path}:OpenRSICompactor"
     best_code = compactor_path.read_text(encoding="utf-8")

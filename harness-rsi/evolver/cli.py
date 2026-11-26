@@ -120,6 +120,9 @@ def cb_evolve_cmd(
     diagnostics: Optional[Path] = typer.Option(
         None, help="Optional *.diagnostics.json from `openrsi cb-analyze` for root-cause guidance"
     ),
+    crossover_note: Optional[str] = typer.Option(
+        None, help="Optional architectural crossover insight from archive lineages"
+    ),
 ) -> None:
     """Run Harness-RSI evolution on `harness/cb_compactor.py` using CompactBench."""
     run_compactbench_evolution(
@@ -133,6 +136,7 @@ def cb_evolve_cmd(
         concurrency=concurrency,
         baseline_xray_path=baseline_xray,
         diagnostics_path=diagnostics,
+        crossover_note=crossover_note,
     )
 
 
