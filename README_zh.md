@@ -86,7 +86,9 @@ flowchart TB
    - Baseline v0（滑动窗口）→ `train` 与未见 `held_out` 均为 **`0.000`**
    - RSI Gen 3（自动进化出的纯确定性证据抽取器）→ `train` 与未见 `held_out` 均达 **`1.000`（8/8 全通过，83.4% 压缩率）**
 2. **CompactBench 官方全量 `practice`（Elite 难度 — 48/48 题、~32k tokens、8 大对抗家族混合、4 轮连续漂移、4,546 道探针）**：
-   - **`OpenRSICompactor` v1（RSI 自动进化出的增量证据账本）**：**`0.762 [95% CI: 0.740, 0.784]`**（`3,535/4,546` 满分探针，抗漂移 **`0.815`**，第 0→4 轮衰减 `+0.164`（`0.90 → 0.69`），`0.0%` 中招率、`0.0%` 幻觉率、`0` 预算违规；`provenance_authority: 0.98`、`decision_override: 0.95`、`entity_confusion: 0.92`）—— 完整 48 题体检报告见 [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md)。
+   - `OpenRSICompactor` v1（`0.2.2`，增量证据账本）：`0.762 [95% CI: 0.740, 0.784]`（`3,535/4,546` 满分）
+   - `OpenRSICompactor` v2（`0.2.4`，二段自检账本）：`0.767 [95% CI: 0.750, 0.785]`（`3,458/4,546` 满分）
+   - **`OpenRSICompactor` v2.5（`0.2.5`，高密度保护打包）**：**`0.806 [95% CI: 0.784, 0.829]`**（`3,624/4,546` 满分，**较 v1 提升 +4.4% 且 95% 置信区间不重叠**，第 0→4 轮 `0.90 → 0.72`，抗漂移 `0.803`，`0.0%` 幻觉、`0` 预算违规）—— 完整 48 题数据与图表见 [`harness-rsi/reports/cb_leaderboard.md`](./harness-rsi/reports/cb_leaderboard.md)。
 
 ---
 

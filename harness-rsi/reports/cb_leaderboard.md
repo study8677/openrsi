@@ -4,26 +4,29 @@ Evaluated with `compactbench==0.3.0` via local `CodexExecProvider` (`codex exec 
 
 ## Official Full Suite: `practice` (Elite Difficulty — 48 cases, ~32k opening tokens, 8 mixed families, 4 drift cycles, 4,546 probes, budget = 2048 tokens)
 
+![CompactBench 48-Case Evolution Progress](./cb_practice48_progress.png)
+
 | Method | Cases | Full-Credit Probes | Official Score (95% CI) | Drift Resistance | Decay (C0 - C4) | Stale / Trap / Halluc | Mean Tokens / Violations |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `OpenRSICompactor` v1 (RSI Delta Evidence Ledger) | 48 / 48 | 3,535 / 4,546 | `0.762 [0.740, 0.784]` | **0.815** | **+0.164** (`0.90 → 0.69`) | `3.3% / 0.0% / 0.0%` | `1,874 / 0` |
-| **`OpenRSICompactor` v2 (2-Pass Audit Ledger)** | **48 / 48** | 3,458 / 4,546 | **`0.767 [0.750, 0.785]`** | 0.777 | `+0.187` (`0.87 → 0.65`) | `4.3% / 0.0% / 0.0%` | `1,880 / 0` |
+| `OpenRSICompactor` v1 (`0.2.2`, Delta Ledger) | 48 / 48 | 3,535 / 4,546 | `0.762 [0.740, 0.784]` | **0.815** | **+0.164** (`0.90 → 0.69`) | `3.3% / 0.0% / 0.0%` | `1,874 / 0` |
+| `OpenRSICompactor` v2 (`0.2.4`, 2-Pass Audit) | 48 / 48 | 3,458 / 4,546 | `0.767 [0.750, 0.785]` | 0.777 | `+0.187` (`0.87 → 0.65`) | `4.3% / 0.0% / 0.0%` | `1,880 / 0` |
+| **`OpenRSICompactor` v2.5 (`0.2.5`, Protected Packer)** | **48 / 48** | **`3,624 / 4,546`** | **`0.806 [0.784, 0.829]`** | **0.803** | **`+0.172` (`0.90 → 0.72`)** | `4.2% / 0.1% / 0.0%` | **`1,981 / 0`** |
 
-### 48-Case v1 vs v2 Per-Family Breakdown & Trace Root-Cause X-Ray (Basis for v3 Crossover Evolution)
+### 48-Case v1 → v2 → v2.5 Per-Family Progression (4,546 Probes)
 
-| Family | v1 (48 cases) | v2 (48 cases) | Delta | v2 Root-Cause Diagnosis (`openrsi cb-analyze`) |
-| :--- | :---: | :---: | :---: | :--- |
-| `reference_resolution` | 0.480 | **0.629** | **+0.149** | Improved sharply; remaining 143 false abstentions from missing/evicted shortlists |
-| `buried_constraint` | 0.650 | **0.757** | **+0.107** | Birth loss cut `142 → 36`; remaining 157 failures are drift-eviction |
-| `task_continuity` | 0.720 | **0.889** | **+0.169** | Huge win (only 6 birth losses across 48 cases!) |
-| `numeric_precision` | 0.720 | **0.751** | **+0.031** | Improved; 84 false abstentions under budget saturation |
-| `conditional_scope` | 0.660 | 0.660 | `0.000` | 218 wrong answers vs 15 abstain (imprecise scope/exception boundaries on cycle 0) |
-| `entity_confusion` | **0.920** | 0.905 | -0.015 | Strong |
-| `decision_override` | **0.950** | 0.717 | **-0.233** | **190 false abstentions vs 10 wrong** — `DECISION` rows evicted by 100% budget saturation! |
-| `provenance_authority` | **0.980** | 0.831 | **-0.149** | **66 false abstentions vs 0 wrong** — `SOURCE` rows evicted by 100% budget saturation! |
+| Family | v1 (`0.2.2`) | v2 (`0.2.4`) | **v2.5 (`0.2.5`)** | v1 → v2.5 Delta |
+| :--- | :---: | :---: | :---: | :---: |
+| `reference_resolution` | 0.480 | 0.629 | **0.673** | **+0.193** |
+| `conditional_scope` | 0.660 | 0.660 | **0.678** | **+0.018** |
+| `buried_constraint` | 0.650 | **0.757** | 0.704 | **+0.054** |
+| `numeric_precision` | 0.720 | 0.751 | **0.800** | **+0.080** |
+| `task_continuity` | 0.720 | **0.889** | 0.868 | **+0.148** |
+| `decision_override` | **0.950** | 0.717 | **0.878** | Recovered **+0.161** over v2 |
+| `entity_confusion` | **0.920** | 0.905 | 0.905 | Held strong |
+| `provenance_authority` | **0.980** | 0.831 | **0.941** | Recovered **+0.110** over v2 |
+| **Official Score (95% CI)** | `0.762 [0.740, 0.784]` | `0.767 [0.750, 0.785]` | **`0.806 [0.784, 0.829]`** | **+0.044 (non-overlapping CI!)** |
 
-- **Key v3 Insight**: `240/240 (100%)` cycles hit budget saturation (`56.8` rows/ledger). Simply combining **v1's `DECISION`/`SOURCE` retention (`0.95`/`0.98`)** + **v2's `reference`/`buried`/`task` gains** + **denser telegraph record formatting** gives an immediate `0.83+` crossover target!
-- **Full JSON summaries & diagnostics**: [`cb_practice48_openrsi_v1.summary.json`](./cb_practice48_openrsi_v1.summary.json) | [`cb_practice48_openrsi_v2.summary.json`](./cb_practice48_openrsi_v2.summary.json) | [`cb_practice48_openrsi_v2.diagnostics.json`](./cb_practice48_openrsi_v2.diagnostics.json)
+- **Full JSON summaries & diagnostics**: [`cb_practice48_openrsi_v1.summary.json`](./cb_practice48_openrsi_v1.summary.json) | [`cb_practice48_openrsi_v2.summary.json`](./cb_practice48_openrsi_v2.summary.json) | [`cb_practice48_openrsi_v2_5.summary.json`](./cb_practice48_openrsi_v2_5.summary.json) | [`cb_practice48_openrsi_v2_5.diagnostics.json`](./cb_practice48_openrsi_v2_5.diagnostics.json)
 
 ---
 
