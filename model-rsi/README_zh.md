@@ -57,15 +57,19 @@ flowchart LR
 
 ## 实测结果（Colab NVIDIA GPU）
 
-### 实验 3（Phase 4 双循环飞轮闭环）：`Harness-RSI ↔ Model-RSI` × 官方 `CompactBench`
+### 实验 3 & 4（Phase 4 & 4.2 双循环飞轮闭环 + Compactor/Reader 联合进化）：`Harness-RSI ↔ Model-RSI` × 官方 `CompactBench`
 
-把 `harness-rsi` 产出的 48 个 Elite 案例（4,659 个官方确定性探针，按 `case_id` 严格 36/6/6 隔离切分）通过飞轮蒸馏 + 在线难例挖掘纠偏注入 `Qwen/Qwen3.5-2B`（冻结 DeltaNet `in_proj_a/b`），再通过 [HFCompactBenchProvider](./model_rsi/flywheel_provider.py) 反向接回官方 `compactbench==0.3.0` 与 `OpenRSICompactor v2` 完成 2×2 消融实测：
+把 `harness-rsi` 产出的 48 个 Elite 案例（4,659 个官方确定性探针，按 `case_id` 严格 36/6/6 隔离切分，可通过 `uv run model-rsi audit-splits` 一键审计零泄漏）同时用于 **Reader 证据账本问答** 与 **`OpenRSICompactor v0.2.4` 原子补丁协议**（`A | H | KIND:` / `R n | H | KIND:` / `NO CHANGE` + Audit 审计轮）的蒸馏与难例纠偏，再通过 [HFCompactBenchProvider](./model_rsi/flywheel_provider.py) 反向接回官方 `compactbench==0.3.0` 完成全套消融实测：
 
-![Phase 4A 飞轮进化曲线](./reports/flywheel_evolution_curve.png)
-![Phase 4B 2×2 双循环对照](./reports/flywheel_ablation_4way.png)
+![Phase 4A & 4.2 飞轮进化曲线](./reports/flywheel_evolution_curve.png)
+![Phase 4B & 4.2 官方 CompactBench 消融对照](./reports/flywheel_ablation_4way.png)
 
 - **Phase 4A（`Harness → Model`，249 个未见 32k Elite 官方探针）**：`53.15% (Gen 0) → 56.97% (Gen 1 蒸馏) → 59.28% (Gen 3 难例纠偏)`（**`+6.13%`**，满分探针 `127/249 → 141/249`，JSON 合规 `100%`，通用回归稳锁 `90.00%`；P0 瓶颈 `reference_resolution` **`52.78% → 67.50%` (+14.72%)**，P1 瓶颈 `conditional_scope` **`32.81% → 46.25%` (+13.44%)**）。
-- **Phase 4B（`Model → Harness`，官方 `starter` 102 探针 2×2 对照）**：进化后的 `OpenRSI-Qwen3.5-2B-Flywheel` 在 `truncate-last-n` 下提升 **`+2.06%`**（`56.20% → 58.26%`，抗漂移 `+5.64%`），在接入 `OpenRSICompactor v2` 下提升 **`+3.70%`**（`45.95% → 49.65%`）并将陈旧记忆错误率大幅压降 **`-13.33%`**（`53.33% → 40.00%`）。详见 [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md)。
+- **Phase 4.2（`Compactor + Reader` 双角色联合进化，Gen 4）**：新增严格 `train` 隔离的 322 条原子校验补丁/审计样本（[`compactbench_patch.py`](./model_rsi/tasks/compactbench_patch.py)）与 743 条 `buried_constraint` 多选精准度校准样本：
+  - **Compactor 原子补丁通过率（`compactor_valid_patch_rate`）**：从 Raw 2B / Gen 3 的 **`0.00%`**（全部回退正则）跃升至 **`90.62%`（29/32 次真实原子补丁通过 `_apply_delta` 协议）**！
+  - **官方 `starter/default`（102 探针）Cell 3（`Gen 4 + truncate-last-n`）**：**`56.20% → 58.26% → 61.55%`（`+5.35%` vs Raw 2B）**，抗漂移率 **`54.17% → 64.87%`（`+10.70%`）**！
+  - **官方 `starter/default` Cell 4（`Gen 4 + OpenRSICompactor v0.2.4`）**：**`45.95% → 49.65% → 52.78%`（`+6.83%` vs Raw 2B + Harness）**，陈旧记忆错误率骤降 **`-20.00%`**（`53.33% → 33.33%`）！
+  - **锁定 32k Elite 留出集（260 探针，`max_length=3584`）**：单阶段即达 **`58.44%`（`+5.29%`，JSON `100%`，回归 `90.00%`）**，其中瓶颈家族 **`buried_constraint` 从 `18.23% → 26.00%`（`+7.77%`）**、`decision_override` 达 **`84.48%`**、`provenance_authority` 达 **`84.78%`**。详见 [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md)。
 
 ### 实验 2（主力基座）：`Qwen/Qwen3.5-2B` × 开源成熟 RLVR 基准（`MATH-500` + `HumanEval+`）
 
@@ -107,14 +111,20 @@ flowchart LR
 
 ```bash
 cd model-rsi
-uv run pytest -v                        # 运行确定性验证器、课程、门控与飞轮单测
+uv run pytest -v                        # 运行 11 项确定性验证器、课程、门控、补丁与多轮自修复单测
+uv run model-rsi audit-splits           # 一键审计 train / val / held_out / starter 零泄漏
+uv run model-rsi export-patch-dataset   # 重建 322 条原子校验通过的 Compactor 补丁蒸馏集
 uv run model-rsi status                 # 查看多代模型进化账本
 uv run model-rsi plot                   # 生成 reports/evolution_curve.png
 uv run model-rsi generate-tasks         # 导出严格隔离的 train/val/held_out/regression 任务集
 uv run model-rsi import-harness         # 从 harness-rsi 导入已验证轨迹（M4 飞轮）
 ```
 
-在 Google Colab GPU（L4 / A100 / H100）上复现完整多代后训练（STaR SFT、Iterative DPO、在线 GRPO/RLVR、谱系权重融合），安装 `requirements-colab.txt` 后运行 `colab/run_model_rsi_colab.py`。
+在 Google Colab GPU（T4 / L4 / A100）上复现全套端到端实验：
+- `colab/run_model_rsi_colab.py` — 多代 Countdown / Math / Code RLVR 闭环
+- `colab/run_phase4_flywheel.py` & `colab/run_phase42_coevolution.py` — 双循环飞轮 + Compactor/Reader 联合进化
+- `colab/run_phase5_agentic_debug.py` — 多轮 Agentic 自我修复 RLVR（写代码 → 沙箱单测 → Traceback → Turn-2 修复）
+- `colab/run_phase6_unified_rsi.py` — DeltaNet-Safe Task Arithmetic 统一多域融合与四基准联合评测
 
 ---
 
@@ -123,4 +133,5 @@ uv run model-rsi import-harness         # 从 harness-rsi 导入已验证轨迹�
 - [x] **M1 — 统一轨迹与验证器协议**：标准化可验证轨迹（来自模型直采或 `harness-rsi`）的存储、打分与过滤格式（`model_rsi/protocol.py`、`model_rsi/tasks/`）。
 - [x] **M2 — 验证 SFT / 拒绝采样闭环**：在开源模型上跑通端到端 Completion-Only STaR SFT 与 Iterative DPO 管线及自动留出集/回归门控（`model_rsi/trainers/star_sft.py`、`iterative_dpo.py`、`gating.py`）。
 - [x] **M3 — 接入 RLVR（GRPO）**：提供面向代码与可验证推理任务的可插拔沙盒在线强化学习训练流，内置防奖励黑客纯二值验证奖励（`model_rsi/trainers/grpo_rlvr.py`）。
-- [x] **M4 — 前沿课程与双循环飞轮**：实现前沿难度调度（`model_rsi/curriculum.py`）、谱系权重融合（`model_rsi/trainers/lineage_merge.py`），并与 [`harness-rsi`](../harness-rsi/README_zh.md) 打通闭环蒸馏（`model_rsi/flywheel.py`）。
+- [x] **M4 — 前沿课程与双循环飞轮（Phase 4 & 4.2）**：前沿难度调度（`curriculum.py`）、Compactor+Reader 联合进化（`compactbench_patch.py`，原子补丁通过率 `90.62%`）、官方 `HFCompactBenchProvider` 消融闭环与 [`harness-rsi`](../harness-rsi/README_zh.md) 只读蒸馏。
+- [x] **M5 — 多轮 Agentic 自修复与统一多域融合底座（Phase 5 & 6）**：2 轮沙箱调试与 Traceback 自修复引擎（`model_rsi/tasks/agentic_debug.py`）、DeltaNet-Safe Task Arithmetic 融合器（`merge_task_arithmetic`）及全套 Colab 端到端脚本。

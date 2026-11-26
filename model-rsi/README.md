@@ -57,15 +57,20 @@ Recursive training on model-generated data introduces distinct failure modes tha
 
 ## Experimental Results (Colab NVIDIA GPU)
 
-### Run 3 (Phase 4 Dual-Loop Flywheel Closure): `Harness-RSI ↔ Model-RSI` on Official `CompactBench`
+### Run 3 & 4 (Phase 4 & 4.2 Dual-Loop Flywheel + Co-Evolution): `Harness-RSI ↔ Model-RSI` on Official `CompactBench`
 
-Closed the full Phase 4 Dual-Loop Flywheel using `harness-rsi`'s 48 Elite cases (4,659 official deterministic probes, strictly split 36/6/6 by `case_id`) to distill and hard-negative-refine `Qwen/Qwen3.5-2B` (DeltaNet-Safe), then plugged the evolved `OpenRSI-Qwen3.5-2B-Flywheel` back into official `compactbench==0.3.0` via [HFCompactBenchProvider](./model_rsi/flywheel_provider.py) for a live 2×2 ablation with `OpenRSICompactor v2`:
+Closed the full Dual-Loop Flywheel using `harness-rsi`'s 48 Elite cases (4,659 official deterministic probes, strictly split 36/6/6 by `case_id` with zero leakage, auditable via `uv run model-rsi audit-splits`) and distilled both **Reader QA** and **`OpenRSICompactor v0.2.4` Atomic Patch Protocol** (`A | H | KIND:` / `R n | H | KIND:` / `NO CHANGE` + Audit Pass) into `Qwen/Qwen3.5-2B` (DeltaNet-Safe), then evaluated back inside official `compactbench==0.3.0` via [HFCompactBenchProvider](./model_rsi/flywheel_provider.py):
 
-![Phase 4A Flywheel Evolution Curve](./reports/flywheel_evolution_curve.png)
-![Phase 4B 2×2 Dual-Loop Ablation](./reports/flywheel_ablation_4way.png)
+![Phase 4A & 4.2 Flywheel Evolution Curve](./reports/flywheel_evolution_curve.png)
+![Phase 4B & 4.2 Official CompactBench Ablation](./reports/flywheel_ablation_4way.png)
 
 - **Phase 4A (`Harness → Model`, 249 unseen 32k Elite probes)**: `53.15% (Gen 0) → 56.97% (Gen 1 Distill) → 59.28% (Gen 3 Hard-Neg STaR)` (**`+6.13%`**, full-credit `127/249 → 141/249`, JSON `100%`, regression locked at `90.00%`; P0 `reference_resolution` **`52.78% → 67.50%` (+14.72%)**, P1 `conditional_scope` **`32.81% → 46.25%` (+13.44%)**).
-- **Phase 4B (`Model → Harness`, official `starter` 102-probe 2×2 ablation)**: `OpenRSI-Qwen3.5-2B-Flywheel` improves over raw `Qwen3.5-2B` under both `truncate-last-n` (`56.20% → 58.26%`, **`+2.06%`**, drift resistance `+5.64%`) and `OpenRSICompactor v2` (`45.95% → 49.65%`, **`+3.70%`**, stale-memory rate cut **`-13.33%`** from `53.33% → 40.00%`). Full analysis in [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md).
+- **Phase 4.2 (`Compactor + Reader` Co-Evolution, Gen 4)**: Added 322 atomically verified Compactor Diff + Audit examples ([`compactbench_patch.py`](./model_rsi/tasks/compactbench_patch.py)) + 743 `buried_constraint` precision-calibrated batches from the same 36 train cases:
+  - **Compactor Atomic Patch Validity (`compactor_valid_patch_rate`)**: surged from **`0.00%`** (Raw 2B / Gen 3 regex fallback) to **`90.62%` (29/32 real atomic patches accepted by `_apply_delta`)**!
+  - **Official `starter/default` (102 probes) Cell 3 (`Gen 4 + truncate-last-n`)**: **`56.20% → 58.26% → 61.55%` (`+5.35%` vs Raw 2B)**, drift resistance **`54.17% → 64.87%` (`+10.70%`)**!
+  - **Official `starter/default` Cell 4 (`Gen 4 + OpenRSICompactor v0.2.4`)**: **`45.95% → 49.65% → 52.78%` (`+6.83%` vs Raw 2B + Harness)**, stale-memory rate slashed **`-20.00%`** (`53.33% → 33.33%`)!
+  - **Locked 32k Elite Held-out (260 probes, `max_length=3584`)**: single-stage from raw `Qwen3.5-2B` reached **`58.44%` (`+5.29%`, JSON `100%`, Regression `90.00%`)**, boosting bottleneck **`buried_constraint` from `18.23% → 26.00%` (`+7.77%`)**, `decision_override` to **`84.48%`**, and `provenance_authority` to **`84.78%`**.
+  - Full analysis in [`reports/phase4_flywheel_report.md`](./reports/phase4_flywheel_report.md).
 
 ### Run 2 (Flagship): `Qwen/Qwen3.5-2B` on Official Open-Source RLVR Benchmarks (`MATH-500` + `HumanEval+`)
 
@@ -107,14 +112,20 @@ Full diagnostics (including the Gen 3 length-collapse reward-hacking diagnosis a
 
 ```bash
 cd model-rsi
-uv run pytest -v                        # Run deterministic verifier, curriculum, gating & flywheel tests
+uv run pytest -v                        # Run 11 deterministic verifier, curriculum, gating, patch & agentic tests
+uv run model-rsi audit-splits           # Verify zero case_id leakage across train / val / held_out / starter
+uv run model-rsi export-patch-dataset   # Rebuild verified Compactor patch distillation dataset (322 examples)
 uv run model-rsi status                 # Inspect multi-generation evolution ledger
 uv run model-rsi plot                   # Render reports/evolution_curve.png
 uv run model-rsi generate-tasks         # Export disjoint train/val/held_out/regression JSONL splits
 uv run model-rsi import-harness         # Import verified Harness-RSI traces (M4 flywheel)
 ```
 
-For full GPU post-training (STaR SFT, Iterative DPO, Online GRPO/RLVR, and Lineage Model Soup) on Google Colab (L4 / A100 / H100), install `requirements-colab.txt` and run `colab/run_model_rsi_colab.py`.
+For full GPU post-training on Google Colab (T4 / L4 / A100), use our end-to-end runners:
+- `colab/run_model_rsi_colab.py` — Multi-gen Countdown / Math / Code RLVR
+- `colab/run_phase4_flywheel.py` & `colab/run_phase42_coevolution.py` — Dual-Loop Flywheel + Compactor/Reader Co-Evolution
+- `colab/run_phase5_agentic_debug.py` — Multi-Turn Agentic Self-Repair RLVR (`Write → Sandbox Tests → Traceback → Turn-2 Repair`)
+- `colab/run_phase6_unified_rsi.py` — DeltaNet-Safe Task Arithmetic Unified Multi-Domain Model-RSI
 
 ---
 
@@ -123,4 +134,5 @@ For full GPU post-training (STaR SFT, Iterative DPO, Online GRPO/RLVR, and Linea
 - [x] **M1 — Unified Trajectory & Verifier Schema**: Standardize how verified rollouts (from direct model sampling or `harness-rsi`) are stored, scored, and filtered (`model_rsi/protocol.py`, `model_rsi/tasks/`).
 - [x] **M2 — Verified SFT / Rejection Sampling Loop**: End-to-end iterative STaR (completion-only LoRA SFT) & Iterative DPO pipelines with automated held-out & regression gating (`model_rsi/trainers/star_sft.py`, `iterative_dpo.py`, `gating.py`).
 - [x] **M3 — RLVR (GRPO) Integration**: Pluggable sandboxed online GRPO training loop with anti-reward-hacking pure-binary verifiable rewards (`model_rsi/trainers/grpo_rlvr.py`).
-- [x] **M4 — Frontier Curriculum & Dual-Loop Flywheel**: Frontier mastery scheduler (`model_rsi/curriculum.py`), lineage weight-space merging (`model_rsi/trainers/lineage_merge.py`), and closed-loop distillation from [`harness-rsi`](../harness-rsi/README.md) (`model_rsi/flywheel.py`).
+- [x] **M4 — Frontier Curriculum & Dual-Loop Flywheel (Phase 4 & 4.2)**: Frontier mastery scheduler (`model_rsi/curriculum.py`), Compactor+Reader co-evolution (`compactbench_patch.py`, `90.62%` atomic patch validity), official `HFCompactBenchProvider` 2×2 ablation, and closed-loop distillation from [`harness-rsi`](../harness-rsi/README.md).
+- [x] **M5 — Multi-Turn Agentic Self-Repair & Unified Task Arithmetic Infrastructure (Phase 5 & 6)**: 2-turn sandbox debugging & traceback self-repair RLVR engine (`model_rsi/tasks/agentic_debug.py`), DeltaNet-Safe Task Arithmetic merger (`merge_task_arithmetic`), and reproducible Colab GPU runners.

@@ -161,18 +161,42 @@ flowchart TB
 
 ![Qwen2.5-1.5B 进化曲线](../reports/evolution_curve.png)
 
+### 4.3 实验三 & 四（Phase 4 & 4.2 双循环飞轮 + Compactor/Reader 双角色联合进化）：`Harness-RSI ↔ Model-RSI` × 官方 `CompactBench`
+
+将 `harness-rsi` 在 32k 漂移基准上产出的 48 个 Elite 案例（4,659 个官方确定性探针）严格按 `case_id` 切分为 **36 训练 / 6 验证 / 6 锁定留出**（与 `starter/default` 零重叠，由 `uv run model-rsi audit-splits` 强制校验）：
+
+![Phase 4A & 4.2 飞轮进化曲线](../reports/flywheel_evolution_curve.png)
+![Phase 4B & 4.2 官方 CompactBench 消融](../reports/flywheel_ablation_4way.png)
+
+1. **Phase 4A（`Harness → Model` Reader 蒸馏 + 难例纠偏）**：
+   - 锁定 32k Elite 留出集（249 探针）：`53.15% (Gen 0) → 56.97% (Gen 1) → 59.28% (Gen 3，+6.13%)`，JSON 合规率 `95% → 100%`，通用回归 `90.00%`；瓶颈家族 `reference_resolution` `+14.72%`（`52.78% → 67.50%`）、`conditional_scope` `+13.44%`（`32.81% → 46.25%`）。
+2. **Phase 4.2（`Compactor + Reader` 双角色联合进化，Gen 4）**：
+   - 通过 [compactbench_patch.py](../model_rsi/tasks/compactbench_patch.py) 对 36 个训练 Elite 案例的相邻周期前沿账本做确定性 Diff，导出 **322 条 100% 原子校验通过的补丁/审计样本**（[compactbench_patch_distill_v1.jsonl.gz](../data/compactbench_patch_distill_v1.jsonl.gz)），配合 743 条 `buried_constraint` 多选校准样本联合训练；
+   - **Compactor 原子补丁通过率从 `0.00%` 飙升至 `90.62%`（29/32 次真实原子补丁通过 `_apply_delta`）**；
+   - **官方 `starter/default`（102 探针）**：Cell 3（`Gen 4 + truncate-last-n`）达 **`61.55%`（`+5.35%` vs Raw 2B，抗漂移 `64.87%` `+10.70%`）**；Cell 4（`Gen 4 + OpenRSICompactor v0.2.4`）达 **`52.78%`（`+6.83%` vs Cell 2，陈旧记忆率 `-20.00%` 从 `53.33% → 33.33%`）**；
+   - **32k Elite 留出集（260 探针，`max_length=3584`）**：单阶段达 **`58.44%`（`+5.29%`，JSON `100%`，回归 `90.00%`）**，瓶颈 `buried_constraint` 从 `18.23%` 跃升至 **`26.00%`（`+7.77%`）**。详见 [`reports/phase4_flywheel_report.md`](../reports/phase4_flywheel_report.md)。
+
+### 4.4 Phase 5 & 6 扩展底座：多轮 Agentic 自我修复与统一多域融合
+
+- **多轮 Agentic 自修复 RLVR（`model_rsi/tasks/agentic_debug.py`、`colab/run_phase5_agentic_debug.py`）**：打通「Turn-1 写代码 → 隔离 `python -I` 沙箱执行 → 脱敏 Traceback 反馈 → Turn-2 自我修复 → 再校验」完整闭环，支持 `Turn-1 Pass@1`、`Turn-2 Pass@1` 与 `Repair Conversion Rate` 量化评测及多轮 STaR / DPO 训练。
+- **DeltaNet-Safe Task Arithmetic 统一融合（`model_rsi/trainers/lineage_merge.py`、`colab/run_phase6_unified_rsi.py`）**：通过 $\theta_{\text{unified}} = \theta_0 + \sum_i \alpha_i (\theta_i - \theta_0)$ 在保持 `in_proj_a/b` 比特级冻结的前提下，将多个领域的专家权重融合为统一多域模型并跨 `MATH-500`、`HumanEval++MBPP`、`CompactBench Elite` 与通用回归门控同步验分。
+
 ---
 
 ## 5. 实战踩坑与关键工程发现
 
-这两轮真实 GPU 实验帮我们沉淀了三条极具通用价值的 Model-RSI 工程规律，并已全部固化进代码库默认配置：
+这四轮真实 GPU 实验帮我们沉淀了五条极具通用价值的 Model-RSI 工程规律，并已全部固化进代码库默认配置：
 
 1. **Qwen3.5 Gated DeltaNet 必须冻结递归状态门（`in_proj_a` / `in_proj_b`）**
    - `all-linear` LoRA 会扰动 DeltaNet 的指数衰减/写入门，导致 `Qwen3.5-2B` 在 Gen 1 掉分至 `36.25%`；冻结后仅训练 Attention + MLP 投影层，Gen 2 立即反弹 `+10.00%` 至 `46.25%`，Gen 3 稳定推高至 `48.75%`。
 2. **RLVR 必须使用纯二值验证奖励（`1.0 / 0.0`），杜绝廉价格式奖励**
    - 在 `Qwen2.5-1.5B` Gen 3 中，`+0.15` 的格式奖励导致模型在难题上学会输出 70 字符的极短占位 `<think>` 标签以骗取格式分（长度坍塌至 `46.1` tokens）；切换为 `pure_binary_reward=True` 后彻底消除该作弊行为。
-3. **STaR SFT 必须启用 `completion_only_loss=True` + 长度过滤 + 锚点回放**
-   - 全序列 SFT 容易过拟合 Prompt 分布和采样噪声导致代码精度下滑；改为仅对回答算 Loss 并混入通用锚点后，既能破冰难题又能保护已有能力。
+3. **STaR SFT 必须启用 `completion_only_loss=True` + 长度匹配 + 锚点回放**
+   - 必须保证 `max_length` 覆盖完整长上下文题面与回答（例如 CompactBench Elite 需 `>= 3200–3584` tokens），避免尾部问题被截断或被 `Dropping fully masked examples` 静默丢弃。
+4. **小模型驱动严格脚手架必须联合蒸馏“协议输出（Compactor）”与“消费推理（Reader）”**
+   - 仅训练 Reader 时，2B 模型驱动 `OpenRSICompactor` 的原子补丁通过率为 `0%`（全部回退正则）；联合蒸馏 322 条原子 Diff 补丁并关闭隐式 `<think>` 标签后，补丁通过率跃升至 `90.62%`，Cell 4 提升 `+6.83%`、陈旧率直降 `-20%`。
+5. **硬件感知精度与单卡绑定（`sm_80+` 原生 `bf16` + `device_map={"": 0}`）**
+   - PyTorch 2.x 在 Turing T4（`sm_75`）上会让 `is_bf16_supported()` 返回 `True`（软件模拟），且 `device_map="auto"` 在显存紧张时可能触发静默 CPU offload 卡死；所有训练器与推理加载器均已统一加固为 `get_device_capability()[0] >= 8` 判定原生 `bf16` 并单卡固定 `cuda:0`。
 
 ---
 
@@ -180,9 +204,10 @@ flowchart TB
 
 ```bash
 cd model-rsi
-uv run pytest -v                                          # 运行 7 项核心单测（协议/沙盒/课程/门控/飞轮）
-uv run model-rsi status --history-path reports/qwen35_2b_evolution_history.json
-uv run model-rsi plot --history-path reports/qwen35_2b_evolution_history.json --out-path reports/qwen35_2b_evolution_curve.png
+uv run pytest -v                                          # 运行 11 项核心单测（协议/沙盒/课程/门控/飞轮/补丁/多轮自修复）
+uv run model-rsi audit-splits                             # 审计 train/val/held_out/starter 零数据泄漏
+uv run model-rsi status --history-path reports/flywheel_evolution_history.json
+uv run model-rsi plot --history-path reports/flywheel_evolution_history.json --out-path reports/flywheel_evolution_curve.png
 ```
 
-在 Google Colab GPU（L4 / A100 / H100）上安装 `requirements-colab.txt` 后，即可直接运行 `colab/run_model_rsi_colab.py` 或按 `reports/qwen35_2b_experiment_summary.md` 复现多代闭环。
+在 Google Colab GPU（T4 / L4 / A100）上安装 `requirements-colab.txt` 后，即可直接运行 `colab/run_model_rsi_colab.py`、`colab/run_phase42_coevolution.py`、`colab/run_phase5_agentic_debug.py` 或 `colab/run_phase6_unified_rsi.py` 复现全部实验。
