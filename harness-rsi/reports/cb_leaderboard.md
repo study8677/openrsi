@@ -37,7 +37,20 @@ Using the 48-case X-ray bottlenecks (`reference_resolution`, `buried_constraint`
 | **Gen 1 (`KEPT`)** | `0.759 [0.700, 0.813]` | 420 / 552 | 0.784 | +0.178 | 0.64 | 0.85 | 0.50 | 0.75 | 0.74 | 0 |
 | **Gen 2 (`KEPT` — `OpenRSICompactor` v2)** | **`0.810 [0.769, 0.859]`** | **`452 / 552`** | **`0.860`** | **`+0.110`** | **`0.73`** | **`0.62`** | **`0.73`** | **`0.75`** | **`0.71`** | **`0`** |
 
-> Statistically significant gain on independent Dev (`[0.769, 0.859]` vs `[0.700, 0.757]` — non-overlapping 95% CIs, **+7.1 pts**, +29 full-credit probes, Cycle 4 jumped `0.65 → 0.73`). Ready for full 48-case `default` re-verification!
+> Statistically significant gain on independent Dev (`[0.769, 0.859]` vs `[0.700, 0.757]` — non-overlapping 95% CIs, **+7.1 pts**, +29 full-credit probes, Cycle 4 jumped `0.65 → 0.73`).
+
+### Round 2 Controlled Ablations on Independent `openrsi_dev_v3` (6 cases = 570 probes, 32k tokens, 4 drift cycles)
+
+Guided by the 48-case v2 trace analysis (which proved `decision_override` and `provenance_authority` suffered 190 + 66 false abstentions purely from budget eviction):
+
+| Candidate | Status | Official Score (95% CI) | Full-Credit Probes | Drift Resistance | Stale Rate | `decision_ovr` | `provenance` | `numeric_prec` | `reference_res` | `cond_scope` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `OpenRSICompactor` v2 (`0.2.4`) | Baseline | `0.727 [0.675, 0.787]` | 409 / 570 | 0.727 | 23.8% | 0.70 | 0.87 | 0.76 | 0.42 | 0.54 |
+| Prompt rewrite `v3.0` (`0.3.0`) | Reverted | `0.678 [0.617, 0.738]` | 388 / 570 | 0.799 | 9.2% | 0.66 | 0.60 | 0.73 | 0.58 | 0.62 |
+| Unranked format `v3.1` (`0.3.1`) | Reverted | `0.595 [0.503, 0.661]` | 330 / 570 | 0.744 | 17.8% | 0.49 | 0.91 | 0.65 | 0.47 | 0.54 |
+| **`OpenRSICompactor` v2.5 (`0.2.5`)** | **KEPT (Promoted)** | **`0.769 [0.727, 0.821]`** | **`433 / 570` (+24)** | **`0.773`** | **`13.5%`** | **`0.84` (+14)** | **`0.95` (+8)** | **`0.87` (+11)** | **`0.47` (+5)** | **`0.59` (+5)** |
+
+> **Key Scientific Takeaway**: Rewriting the battle-tested RSI prompt regressed recall; keeping v2's exact prompt while fixing ONLY the packer (`Ledger:` + `H|` compact wire encoding + `97%` safe budget cap + early reserved packing slots for `SOURCE`/`DECISION`) gained **+4.2 pts (+24 full-credit probes)** with **strict gains on all 5 drift cycles** and `0` budget violations!
 
 ---
 

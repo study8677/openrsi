@@ -33,8 +33,8 @@ from compactbench.contracts import CompactionArtifact, CompactionRequest
 from compactbench.providers import CompletionRequest
 
 _ENC = tiktoken.get_encoding("cl100k_base")
-_HEADER = "Evidence ledger (explicit status and scope govern):"
-_ENTRY = re.compile(r"^([HML]) \| (.+)$")
+_HEADER = "Ledger:"
+_ENTRY = re.compile(r"^([HML])\s*\|\s*(.+)$")
 _PATCH = re.compile(r"^(A|R ([1-9]\d{0,5})) \| ([HML]) \| (.+)$")
 _KIND = re.compile(
     r"^(TASK|SCOPE|BINDING|OPTION|DECISION|IDENTITY|SOURCE|EXACT|RULE):\s+\S"
@@ -87,7 +87,7 @@ class _Record:
     text: str
 
     def render(self) -> str:
-        return f"{self.priority} | {self.text}"
+        return f"{self.priority}|{self.text}"
 
     @property
     def kind(self) -> str | None:
@@ -210,6 +210,15 @@ def _packing_order(
             buckets[kind][int(changed[index])].append(index)
         else:
             lower.append(index)
+
+    # Protect SOURCE & DECISION from being crowded out by voluminous OPTION/RULE rows
+    for guarded_kind, quota in (("SOURCE", 4), ("DECISION", 6)):
+        taken = 0
+        for lane in (1, 0):
+            queue = buckets[guarded_kind][lane]
+            while queue and taken < quota:
+                yield queue.popleft()
+                taken += 1
 
     while any(older or incoming for older, incoming in buckets.values()):
         for kinds, lane in (
@@ -454,7 +463,7 @@ class OpenRSICompactor(Compactor):
     """Reconcile only the new delta against the last retained evidence."""
 
     name: ClassVar[str] = "openrsi-compactor"
-    version: ClassVar[str] = "0.2.4"
+    version: ClassVar[str] = "0.2.5"
 
     async def _complete_patch(
         self, prompt: str, prior: list[_Record], max_tokens: int,
@@ -472,7 +481,7 @@ class OpenRSICompactor(Compactor):
 
     async def compact(self, request: CompactionRequest) -> CompactionArtifact:
         budget = max(0, int(request.token_budget))
-        limit = budget * 92 // 100
+        limit = budget * 97 // 100
         if not limit:
             return CompactionArtifact(summary_text="")
 
