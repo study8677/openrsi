@@ -224,29 +224,37 @@ def build_agentic_repair_sft_examples(
 def build_agentic_repair_dpo_pairs(
     episodes: list[AgenticEpisode],
 ) -> list[dict[str, Any]]:
-    """Build multi-turn DPO preference pairs `(prompt_with_traceback, fixed_t2, failed_t2)`.
+    """Build same-context multi-turn DPO pairs `(prompt_with_traceback, fixed_t2, failed_t2)`.
 
-    Pairs a verified Turn-2 repair (`chosen`) against a failed Turn-2 attempt (`rejected`)
-    from the same failing Turn-1 task, directly reinforcing traceback-grounded debugging.
+    Strictly groups by `(task_id, turn1_response, repair_prompt)` so `chosen` and `rejected`
+    are true counterfactual Turn-2 repairs for the EXACT same buggy Turn-1 draft & traceback.
     """
-    by_task: dict[str, list[AgenticEpisode]] = {}
+    by_ctx: dict[tuple[str, str, str], list[AgenticEpisode]] = {}
     for ep in episodes:
-        if ep.split != "train" or ep.turn1_passed:
+        if ep.split != "train" or ep.turn1_passed or not ep.repair_prompt:
             continue
-        by_task.setdefault(ep.task_id, []).append(ep)
+        ctx_key = (ep.task_id, ep.turn1_response, ep.repair_prompt)
+        by_ctx.setdefault(ctx_key, []).append(ep)
 
     pairs: list[dict[str, Any]] = []
-    for task_id, grp in sorted(by_task.items()):
+    seen_tasks: set[str] = set()
+    for (task_id, _t1, _rp), grp in sorted(by_ctx.items()):
+        if task_id in seen_tasks:
+            continue
         wins = [e for e in grp if e.repaired and e.repair_prompt and e.turn2_response]
         losses = [
             e
             for e in grp
-            if (not e.final_passed) and e.repair_prompt and e.turn2_response
+            if (not e.final_passed)
+            and e.repair_prompt
+            and e.turn2_response
+            and e.turn2_response.strip() != (wins[0].turn2_response.strip() if wins else "")
         ]
         if not wins or not losses:
             continue
         win = wins[0]
         loss = losses[0]
+        seen_tasks.add(task_id)
         sys_msg = win.system_prompt or AGENTIC_CODE_SYSTEM_PROMPT
         prompt_msgs = [
             {"role": "system", "content": sys_msg},
@@ -273,6 +281,7 @@ def run_two_turn_agentic_eval(
     tasks: list[VerifiableTask],
     *,
     num_samples: int = 1,
+    turn2_num_samples: int = 1,
     turn1_temperature: float = 0.0,
     turn2_temperature: float = 0.0,
     max_new_tokens: int = 512,
@@ -339,42 +348,56 @@ def run_two_turn_agentic_eval(
     t1_resps = _gen_batch(t1_prompts, turn1_temperature)
 
     episodes: list[AgenticEpisode] = []
-    need_repair_idx: list[int] = []
+    need_repair_ep_idx: list[int] = []
+    need_repair_tasks: list[VerifiableTask] = []
     t2_prompts: list[str] = []
 
-    for idx, (task, resp1) in enumerate(zip(expanded, t1_resps)):
+    for task, resp1 in zip(expanded, t1_resps):
         ver1 = verify_code_exec(task, resp1)
-        ep = AgenticEpisode(
-            task_id=task.task_id,
-            split=task.split,
-            difficulty=task.difficulty,
-            prompt=task.prompt,
-            system_prompt=task.system_prompt or AGENTIC_CODE_SYSTEM_PROMPT,
-            turn1_response=resp1,
-            turn1_verification=ver1,
-            metadata=dict(task.metadata),
-        )
-        episodes.append(ep)
-        if not ver1.passed:
-            r_prompt = build_repair_prompt(ver1)
-            ep.repair_prompt = r_prompt
-            need_repair_idx.append(idx)
-            t2_prompts.append(
-                _apply_chat(
-                    [
-                        {"role": "system", "content": ep.system_prompt},
-                        {"role": "user", "content": ep.prompt},
-                        {"role": "assistant", "content": ep.turn1_response},
-                        {"role": "user", "content": r_prompt},
-                    ]
+        if ver1.passed:
+            episodes.append(
+                AgenticEpisode(
+                    task_id=task.task_id,
+                    split=task.split,
+                    difficulty=task.difficulty,
+                    prompt=task.prompt,
+                    system_prompt=task.system_prompt or AGENTIC_CODE_SYSTEM_PROMPT,
+                    turn1_response=resp1,
+                    turn1_verification=ver1,
+                    metadata=dict(task.metadata),
                 )
             )
+        else:
+            r_prompt = build_repair_prompt(ver1)
+            rendered_t2 = _apply_chat(
+                [
+                    {"role": "system", "content": task.system_prompt or AGENTIC_CODE_SYSTEM_PROMPT},
+                    {"role": "user", "content": task.prompt},
+                    {"role": "assistant", "content": resp1},
+                    {"role": "user", "content": r_prompt},
+                ]
+            )
+            for _ in range(max(1, turn2_num_samples)):
+                ep = AgenticEpisode(
+                    task_id=task.task_id,
+                    split=task.split,
+                    difficulty=task.difficulty,
+                    prompt=task.prompt,
+                    system_prompt=task.system_prompt or AGENTIC_CODE_SYSTEM_PROMPT,
+                    turn1_response=resp1,
+                    turn1_verification=ver1,
+                    repair_prompt=r_prompt,
+                    metadata=dict(task.metadata),
+                )
+                need_repair_ep_idx.append(len(episodes))
+                need_repair_tasks.append(task)
+                t2_prompts.append(rendered_t2)
+                episodes.append(ep)
 
     # Turn 2: Self-Repair on failed episodes + deterministic re-verification
     if t2_prompts:
         t2_resps = _gen_batch(t2_prompts, turn2_temperature)
-        for ep_idx, resp2 in zip(need_repair_idx, t2_resps):
-            task = expanded[ep_idx]
+        for ep_idx, task, resp2 in zip(need_repair_ep_idx, need_repair_tasks, t2_resps):
             ep = episodes[ep_idx]
             ep.turn2_response = resp2
             ep.turn2_verification = verify_code_exec(task, resp2)

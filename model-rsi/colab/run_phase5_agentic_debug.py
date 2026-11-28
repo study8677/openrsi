@@ -112,6 +112,17 @@ def eval_regression(model: Any, tok: Any) -> float:
     return round(passed / len(reg_tasks), 4)
 
 
+def _assert_deltanet_frozen(model: Any) -> None:
+    """Fail closed if any Gated DeltaNet recurrent state gate (`in_proj_a`/`in_proj_b`) is trainable."""
+    bad = [
+        name
+        for name, param in model.named_parameters()
+        if param.requires_grad and ("in_proj_a" in name or "in_proj_b" in name)
+    ]
+    if bad:
+        raise RuntimeError(f"DeltaNet freeze violation! Trainable gate params: {bad[:5]}")
+
+
 def run_phase5(
     *,
     base_model: str = "Qwen/Qwen3.5-2B",
@@ -143,7 +154,7 @@ def run_phase5(
         f"val={len(val_tasks)}, held_out={len(ho_tasks)} (HumanEval+={len(he_ho)}, MBPP={len(mbpp_ho)})"
     )
 
-    policy = GatePolicy(min_held_out_gain=0.005, max_regression_drop=0.05, min_regression_floor=0.80)
+    policy = GatePolicy(min_held_out_gain=0.005, max_regression_drop=0.0, min_regression_floor=0.90)
     history: list[GenerationMetrics] = []
     detailed_metrics: list[dict[str, Any]] = []
 
@@ -262,6 +273,7 @@ def run_phase5(
     trainer = SFTTrainer(
         model=model, args=sft_cfg, train_dataset=ds, processing_class=tok, peft_config=peft_cfg
     )
+    _assert_deltanet_frozen(trainer.model)
     trainer.train()
     merged = trainer.model.merge_and_unload()
     merged.save_pretrained(str(gen1_dir))
@@ -279,20 +291,21 @@ def run_phase5(
         best_gm = g1
     print(f"[Phase 5 Gen 1] {g1.status.upper()} | {g1.notes} | Reg={g1.regression_score:.2%}")
 
-    # --- Gen 2: Self-Repair Preference DPO (only on bf16 hardware or fallback to Hard-Repair STaR) ---
+    # --- Gen 2: Same-Context Self-Repair Preference DPO (bf16 hardware) ---
     model, tok = load_gpu_model(best_gm.checkpoint_path)
     t_eps_g2 = run_two_turn_agentic_eval(
         model,
         tok,
         rollout_subset,
-        num_samples=3,
-        turn1_temperature=0.7,
+        num_samples=1,
+        turn2_num_samples=4,
+        turn1_temperature=0.6,
         turn2_temperature=0.8,
         batch_size=8,
     )
     free_gpu(model)
     dpo_pairs = build_agentic_repair_dpo_pairs(t_eps_g2)
-    print(f"[Phase 5 Gen 2] Harvested {len(dpo_pairs)} multi-turn self-repair DPO pairs")
+    print(f"[Phase 5 Gen 2] Harvested {len(dpo_pairs)} same-context multi-turn self-repair DPO pairs")
 
     if len(dpo_pairs) >= 10 and use_bf16:
         gen2_dir = ckpt_dir / "gen2_agentic_repair_dpo"
@@ -325,7 +338,6 @@ def run_phase5(
             report_to="none",
             seed=seed + 2,
             max_length=2048,
-            max_prompt_length=1536,
         )
         dpo_trainer = DPOTrainer(
             model=model,
@@ -335,6 +347,7 @@ def run_phase5(
             processing_class=tok,
             peft_config=peft_cfg,
         )
+        _assert_deltanet_frozen(dpo_trainer.model)
         dpo_trainer.train()
         merged = dpo_trainer.model.merge_and_unload()
         merged.save_pretrained(str(gen2_dir))

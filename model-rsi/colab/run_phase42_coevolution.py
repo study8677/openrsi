@@ -365,7 +365,7 @@ def run_phase42(
     )
     cell3_g4 = run_official_compactbench_eval(
         provider_trunc,
-        method_spec="truncate-last-n",
+        method_spec="built-in:truncate-last-n",
         model_label="openrsi-flywheel-gen4",
         output_path=rep_dir / "ablation_cell3_gen4_trunc.jsonl",
         suite="starter",

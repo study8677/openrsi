@@ -466,6 +466,22 @@ def test_phase5_agentic_debug_loop_and_builders() -> None:
     assert dpo[0]["chosen"] == good_code
     assert dpo[0]["rejected"] == bad_code
 
+    # Mismatched Turn-1 draft must NOT be paired into DPO
+    ep_diff_ctx = AgenticEpisode(
+        task_id="t_code_1",
+        split="train",
+        difficulty=2,
+        prompt=task.prompt,
+        system_prompt=task.system_prompt,
+        turn1_response="```python\ndef rle_encode(s):\n    return ''\n```",
+        turn1_verification=v_bad,
+        repair_prompt=r_prompt,
+        turn2_response=bad_code,
+        turn2_verification=v_bad,
+        metadata={"dataset": "mbpp"},
+    )
+    assert build_agentic_repair_dpo_pairs([ep_repaired, ep_diff_ctx]) == []
+
 
 def test_phase6_unified_chart_and_dataset_isolation(tmp_path: Path) -> None:
     import gzip
